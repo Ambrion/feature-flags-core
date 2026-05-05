@@ -7,20 +7,40 @@ namespace FeatureFlags\Core\Domain\Specification;
 use FeatureFlags\Core\Domain\ValueObject\EvaluationContext;
 
 /**
- * Спецификация для условия "category=VALUE".
+ * Спецификация для условий "category=VALUE" и "category IN (a,b,c)".
  * Реализует контракт проверки условий.
+ * Минимальная логика: парсинг строки + нестрогое сравнение (case-insensitive).
  */
 final class CategorySpecification implements ConditionSpecificationInterface
 {
     public function supports(string $condition): bool
     {
-        return str_starts_with($condition, 'category=');
+        // Ловим: category=... ИЛИ category IN (...)
+        return (bool)preg_match('/^category\s*(=|IN\s*\()/i', $condition);
     }
 
     public function isSatisfiedBy(string $condition, EvaluationContext $context): bool
     {
-        $expected = explode('=', $condition, 2)[1] ?? '';
+        $category = $context->get('category');
+        if ($category === null) {
+            return false;
+        }
 
-        return $context->get('category') === $expected;
+        $current = strtolower((string)$category);
+
+        // Поддержка: category=electronics
+        if (preg_match('/^category\s*=\s*(\w+)$/i', $condition, $match)) {
+            return $current === strtolower($match[1]);
+        }
+
+        // Поддержка: category IN (electronics, phones)
+        if (preg_match('/^category\s+IN\s*\(([^)]+)\)$/i', $condition, $match)) {
+            $allowed = array_map('trim', explode(',', $match[1]));
+            $allowedLower = array_map('strtolower', $allowed);
+
+            return in_array($current, $allowedLower, true);
+        }
+
+        return false;
     }
 }

@@ -61,4 +61,31 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT: Ожидаем true, потому что правило совпало
         $this->assertTrue($result);
     }
+
+    /**
+     * Поддержка условия "category IN (a,b,c)"
+     * Сценарий: Флаг с правилом "category IN (electronics,phones)"
+     * должен вернуть true, если контекст содержит category=phones
+     */
+    public function test_flag_with_category_in_rule(): void
+    {
+        // ARRANGE: Флаг с правилом IN
+        $flag = new FeatureFlag(
+            name: new FlagName('promo_banner'),
+            default: false,
+            rules: [['condition' => 'category IN (electronics,phones)', 'value' => true]],
+            specifications: [new CategorySpecification()]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Контекст с category=phones (в списке IN)
+        $result = $service->isEnabled('promo_banner', ['category' => 'phones']);
+
+        // ASSERT: Ожидаем true, потому что phones есть в списке
+        $this->assertTrue($result);
+    }
 }
