@@ -20,11 +20,14 @@ final readonly class FeatureFlagService
     {
     }
 
-    public function isEnabled(string $flagName): bool
+    public function isEnabled(string $flagName, array $context = []): bool
     {
         $flag = $this->repository->findByName(new FlagName($flagName));
 
-        // Если флаг не найден → возвращаем false (дефолт для неизвестного флага)
-        return $flag !== null ? $flag->default : false;
+        if ($flag === null) {
+            return false;
+        }
+
+        return $flag->evaluate($context);
     }
 }
