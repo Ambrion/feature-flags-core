@@ -1,0 +1,30 @@
+# Зависимости
+/vendor/
+composer.phar
+
+# Окружение
+.env
+.env.local
+.env.*.local
+docker-compose.override.yml
+
+# Тесты и покрытие
+coverage.xml
+clover.xml
+.phpunit.cache/
+
+# IDE и ОС
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Docker/Локальные артефакты
+*.log
+tmp/
+.phpstan-result/
+.php-cs-fixer.cache
+/composer.lock

@@ -1,0 +1,21 @@
+services:
+  php:
+    container_name: featureflags_core_dev
+    build:
+      context: ./docker/php
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.3}
+    working_dir: /app
+    volumes:
+      - .:/app:cached
+      - composer-cache:/tmp/composer-cache
+    environment:
+      - COMPOSER_ALLOW_SUPERUSER=1
+      - XDEBUG_MODE=${XDEBUG_MODE:-coverage}
+      - XDEBUG_TRIGGER=${XDEBUG_TRIGGER:-off}
+      - PHP_IDE_CONFIG=serverName=featureflags_core
+    tty: true
+    stdin_open: true
+
+volumes:
+  composer-cache:

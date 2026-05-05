@@ -1,0 +1,51 @@
+{
+  "name": "ambrion/feature-flags-core",
+  "description": "Framework-agnostic Feature Flags library following DDD and Clean Architecture principles",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Ambrion",
+      "email": "ping@ambrion.dev"
+    }
+  ],
+  "require": {
+    "php": "^8.3"
+  },
+  "require-dev": {
+    "pestphp/pest": "^2.34",
+    "phpstan/phpstan": "^1.10",
+    "laravel/pint": "^1.13"
+  },
+  "autoload": {
+    "psr-4": {
+      "FeatureFlags\\Core\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "FeatureFlags\\Core\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    },
+    "optimize-autoloader": true,
+    "process-timeout": 300
+  },
+  "scripts": {
+    "test": "pest",
+    "test:coverage": "pest --coverage --coverage-clover=coverage.xml",
+    "stan": "phpstan analyse src tests --level=max",
+    "format": "pint",
+    "lint": "pint --test",
+    "check": ["@lint", "@test:coverage", "@stan"],
+    "post-autoload-dump": [
+      "@php vendor/bin/test -- --help > /dev/null 2>&1 || true"
+    ]
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
