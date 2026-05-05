@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace FeatureFlags\Core\Domain\Entity;
 
+use FeatureFlags\Core\Domain\Specification\ConditionSpecificationInterface;
+use FeatureFlags\Core\Domain\ValueObject\EvaluationContext;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 
 /**
@@ -13,29 +15,30 @@ use FeatureFlags\Core\Domain\ValueObject\FlagName;
  */
 final readonly class FeatureFlag
 {
+    /**
+     * @param ConditionSpecificationInterface[] $specifications
+     */
     public function __construct(
         public FlagName $name,
         public bool     $default = false,
-        public array    $rules = []
+        public array    $rules = [],
+        private array   $specifications = []
     )
     {
     }
 
-    public function evaluate(array $context): bool
+    public function evaluate(EvaluationContext $context): bool
     {
         foreach ($this->rules as $rule) {
             $condition = $rule['condition'] ?? '';
-            $value = $rule['value'] ?? false;
 
-            if (preg_match('/^category=(.+)$/', $condition, $matches)) {
-                $expectedCategory = $matches[1];
-                if (isset($context['category']) && $context['category'] === $expectedCategory) {
-                    return (bool) $value;
+            foreach ($this->specifications as $spec) {
+                if ($spec->supports($condition) && $spec->isSatisfiedBy($condition, $context)) {
+                    return (bool)($rule['value'] ?? false);
                 }
             }
         }
 
-        // Если ни одно правило не совпало — возвращаем дефолт
         return $this->default;
     }
 }

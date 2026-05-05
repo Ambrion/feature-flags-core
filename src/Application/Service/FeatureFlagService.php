@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FeatureFlags\Core\Application\Service;
 
 use FeatureFlags\Core\Domain\Repository\FlagRepositoryInterface;
+use FeatureFlags\Core\Domain\ValueObject\EvaluationContext;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 
 /**
@@ -28,6 +29,6 @@ final readonly class FeatureFlagService
             return false;
         }
 
-        return $flag->evaluate($context);
+        return $flag->evaluate(EvaluationContext::fromArray($context));
     }
 }

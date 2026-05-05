@@ -7,6 +7,7 @@ namespace FeatureFlags\Core\Tests\Unit\Application;
 use FeatureFlags\Core\Application\Service\FeatureFlagService;
 use FeatureFlags\Core\Domain\Entity\FeatureFlag;
 use FeatureFlags\Core\Domain\Repository\FlagRepositoryInterface;
+use FeatureFlags\Core\Domain\Specification\CategorySpecification;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 use PHPUnit\Framework\TestCase;
 
@@ -39,11 +40,14 @@ final class FeatureFlagServiceTest extends TestCase
      */
     public function test_flag_with_category_rule_evaluates_context(): void
     {
+        $specifications = [new CategorySpecification()];
+
         // ARRANGE: Флаг с одним правилом
         $flag = new FeatureFlag(
             name: new FlagName('promo_banner'),
             default: false,
-            rules: [['condition' => 'category=electronics', 'value' => true]]
+            rules: [['condition' => 'category=electronics', 'value' => true]],
+            specifications: $specifications
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
