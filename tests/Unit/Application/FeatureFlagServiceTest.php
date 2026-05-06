@@ -498,4 +498,41 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT
         $this->assertEquals('variant_b', $variant);
     }
+
+    /**
+     * Детерминированность A/B-тестов — одинаковый хеш = одинаковый вариант.
+     * Сценарий: При многократном вызове getVariant() с одним и тем же user_hash
+     * должен всегда возвращаться один и тот же вариант.
+     */
+    public function test_getVariant_is_deterministic_for_same_user_hash(): void
+    {
+        // ARRANGE: Флаг с распределением 50/50
+        $flag = new FeatureFlag(
+            name: new FlagName('ab_deterministic_test'),
+            default: false,
+            rules: [
+                // 50% трафика попадает сюда (buckets 0-49)
+                ['condition' => 'user_hash PERCENTAGE 50', 'value' => 'variant_a'],
+                // Оставшиеся 50% попадают сюда (buckets 50-99)
+                ['condition' => 'user_hash PERCENTAGE 100', 'value' => 'variant_b'],
+            ],
+            specifications: [new PercentageSpecification()]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        $userHash = 'consistent_session_id_12345';
+
+        // ACT & ASSERT: Вызываем 10 раз, результат должен быть идентичным
+        $results = [];
+        for ($i = 0; $i < 10; $i++) {
+            $results[] = $service->getVariant('ab_deterministic_test', ['user_hash' => $userHash]);
+        }
+
+        // Все результаты должны быть идентичны первому
+        $uniqueResults = array_unique($results);
+        $this->assertCount(1, $uniqueResults, 'Same user_hash must always yield the same variant');
+    }
 }
