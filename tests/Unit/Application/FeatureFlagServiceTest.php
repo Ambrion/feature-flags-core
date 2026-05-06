@@ -425,4 +425,42 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT
         $this->assertEquals('variant_b', $variant);
     }
+
+    /**
+     * Граничный случай getVariant() — возврат null при отсутствии совпадений.
+     * Сценарий: Если ни одно правило не сработало, метод должен вернуть null,
+     * а не дефолтное значение или ошибку
+     */
+    public function test_getVariant_returns_null_when_no_rules_match(): void
+    {
+        // ARRANGE: Флаг с правилами, которые НЕ совпадут с переданным контекстом
+        $flag = new FeatureFlag(
+            name: new FlagName('ab_test_variant'),
+            default: false,
+            rules: [
+                // Требует admin, но будет guest
+                ['condition' => 'user_role=admin', 'value' => 'admin_view'],
+                // Требует electronics, но будет clothing
+                ['condition' => 'category=electronics', 'value' => 'variant_b'],
+            ],
+            specifications: [
+                new UserRoleSpecification(),
+                new CategorySpecification(),
+            ]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Контекст, не удовлетворяющий ни одному правилу
+        $variant = $service->getVariant('ab_test_variant', [
+            'user_role' => 'guest',
+            'category' => 'clothing',
+            'user_hash' => 'test_123'
+        ]);
+
+        // ASSERT: Ожидаем null
+        $this->assertNull($variant);
+    }
 }
