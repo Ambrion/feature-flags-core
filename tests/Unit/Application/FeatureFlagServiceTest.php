@@ -10,6 +10,7 @@ use FeatureFlags\Core\Domain\Repository\FlagRepositoryInterface;
 use FeatureFlags\Core\Domain\Specification\CategorySpecification;
 use FeatureFlags\Core\Domain\Specification\DateBetweenSpecification;
 use FeatureFlags\Core\Domain\Specification\PercentageSpecification;
+use FeatureFlags\Core\Domain\Specification\TargetIdSpecification;
 use FeatureFlags\Core\Domain\Specification\UserRoleSpecification;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 use PHPUnit\Framework\TestCase;
@@ -227,5 +228,32 @@ final class FeatureFlagServiceTest extends TestCase
 
         // ASSERT: Правило переопределило дефолт
         $this->assertFalse($result);
+    }
+
+    /**
+     * Поддержка условия "target_id IN (id1,id2,...)".
+     * Сценарий: Флаг с правилом "target_id IN (101,102)"
+     * должен вернуть true, если контекст содержит target_id=101.
+     */
+    public function test_flag_with_target_id_in_rule(): void
+    {
+        // ARRANGE: Флаг с правилом IN для ID
+        $flag = new FeatureFlag(
+            name: new FlagName('special_promo'),
+            default: false,
+            rules: [['condition' => 'target_id IN (101, 102)', 'value' => true]],
+            specifications: [new TargetIdSpecification()]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Контекст с target_id=101 (попадает в список)
+        $result = $service->isEnabled('special_promo', ['target_id' => 101]);
+
+        // ASSERT: Ожидаем true, потому что ID есть в списке
+        $this->assertTrue($result);
     }
 }
