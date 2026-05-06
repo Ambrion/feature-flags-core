@@ -174,4 +174,58 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT
         $this->assertTrue($result);
     }
+
+    /**
+     * Граничный случай: "условие PERCENTAGE 0 никогда не выполняется".
+     * Сценарий: При PERCENTAGE 0 правило не применяется ни для одного хеша,
+     * поэтому возвращается значение по умолчанию (default).
+     */
+    public function test_flag_with_percentage_0_rule(): void
+    {
+        // ARRANGE: Флаг с правилом 0% rollout
+        // PERCENTAGE 0 = условие никогда не выполняется -> правило игнорируется
+        $flag = new FeatureFlag(
+            name: new FlagName('canary_zero'),
+            default: false, // Ожидаем возврат именно этого значения
+            rules: [['condition' => 'user_hash PERCENTAGE 0', 'value' => true]],
+            specifications: [new PercentageSpecification()]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT: PERCENTAGE 0 → условие не выполняется → правило не применяется
+        $result = $service->isEnabled('canary_zero', ['user_hash' => 'any_hash_123']);
+
+        // ASSERT: Возвращается default, потому что правило не сработало
+        $this->assertFalse($result);
+    }
+
+    /**
+     * Сценарий: "Явно выключить флаг для всех пользователей".
+     * Решение: Использовать PERCENTAGE 100 + value=false, чтобы правило
+     * гарантированно применялось и переопределяло дефолт.
+     */
+    public function test_flag_explicitly_disabled_for_all(): void
+    {
+        $flag = new FeatureFlag(
+            name: new FlagName('force_disabled'),
+            default: true, // Дефолт true, чтобы доказать переопределение
+            rules: [
+                // PERCENTAGE 100 + value=false = "всем вернуть false"
+                ['condition' => 'user_hash PERCENTAGE 100', 'value' => false]
+            ],
+            specifications: [new PercentageSpecification()]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        $result = $service->isEnabled('force_disabled', ['user_hash' => 'any_hash_123']);
+
+        // ASSERT: Правило переопределило дефолт
+        $this->assertFalse($result);
+    }
 }
