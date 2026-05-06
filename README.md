@@ -54,13 +54,13 @@ $variant = $flagService->getVariant('article_header_test', [
 ## 🧩 How Rules Work
 Flags are evaluated **in order** (short-circuit). First matching rule wins.
 
-| Condition Syntax | Description | Example |
-|------------------|-------------|---------|
-| `user_role=VALUE` | Exact role match | `user_role=admin` |
-| `category IN (a,b)` | List match | `category IN (electronics,phones)` |
-| `target_id=VALUE` | Exact entity ID | `target_id=101` |
-| `current_date BETWEEN MM-DD AND MM-DD` | Seasonal window | `current_date BETWEEN 12-01 AND 12-31` |
-| `user_hash PERCENTAGE N` | Deterministic rollout | `user_hash PERCENTAGE 25` |
+| Condition Syntax                       | Description           | Example                                |
+|----------------------------------------|-----------------------|----------------------------------------|
+| `user_role=VALUE`                      | Exact role match      | `user_role=admin`                      |
+| `category IN (a,b)`                    | List match            | `category IN (electronics,phones)`     |
+| `target_id=VALUE`                      | Exact entity ID       | `target_id=101`                        |
+| `current_date BETWEEN MM-DD AND MM-DD` | Seasonal window       | `current_date BETWEEN 12-01 AND 12-31` |
+| `user_hash PERCENTAGE N`               | Deterministic rollout | `user_hash PERCENTAGE 25`              |
 
 > 💡 **Platform Integration**: Map your platform-specific keys (e.g., `document_id`) to `target_id` in your adapter. The core stays neutral.
 
