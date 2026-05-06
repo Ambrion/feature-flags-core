@@ -1,0 +1,29 @@
+# Docker
+/docker/** export-ignore
+/.dockerignore export-ignore
+/docker-compose.yml export-ignore
+/docker-compose.override.yml export-ignore
+
+# CI/CD
+/.github/** export-ignore
+/.gitattributes export-ignore
+/.editorconfig export-ignore
+/.gitignore export-ignore
+
+# Test
+/tests/** export-ignore
+/phpstan.neon export-ignore
+/phpunit.xml export-ignore
+/pest.php export-ignore
+
+# Dev scripts
+/.pint.php export-ignore
+
+# IDE
+/.idea/** export-ignore
+/*.swp export-ignore
+/*.swo export-ignore
+
+# Be sure to include
+/src/**
+/composer.json, /README.md, /LICENSE, /CHANGELOG.md
