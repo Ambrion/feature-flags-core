@@ -36,4 +36,16 @@ final readonly class FeatureFlagService
 
         return $result;
     }
+
+    /**
+     * Получает вариант флага для A/B-тестирования.
+     * Делегирует оценку доменной сущности.
+     * Возвращает null, если флаг не найден или правила не сработали.
+     */
+    public function getVariant(string $flagName, array $context = []): ?string
+    {
+        $flag = $this->repository->findByName(new FlagName($flagName));
+
+        return $flag?->getVariant(EvaluationContext::fromArray($context));
+    }
 }

@@ -387,4 +387,42 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT
         $this->assertTrue($result);
     }
+
+    /**
+     * A/B тестирование — получение варианта флага.
+     * Сценарий: Метод getVariant() возвращает строковое значение
+     * первого сработавшего правила, или null, если флаг не найден.
+     */
+    public function test_getVariant_returns_matching_variant(): void
+    {
+        // ARRANGE: Флаг с правилами, возвращающими строки (варианты)
+        $flag = new FeatureFlag(
+            name: new FlagName('header_ab_test'),
+            default: false,
+            rules: [
+                // Правило 1: админам всегда показываем специальную версию
+                ['condition' => 'user_role=admin', 'value' => 'admin_view'],
+                // Правило 2: остальным — variant_b (100% трафика для теста)
+                ['condition' => 'user_hash PERCENTAGE 100', 'value' => 'variant_b'],
+            ],
+            specifications: [
+                new UserRoleSpecification(),
+                new PercentageSpecification(),
+            ]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Гость (не админ) + 100% трафика -> должен попасть в variant_b
+        $variant = $service->getVariant('header_ab_test', [
+            'user_role' => 'guest',
+            'user_hash' => 'test_session_xyz'
+        ]);
+
+        // ASSERT
+        $this->assertEquals('variant_b', $variant);
+    }
 }

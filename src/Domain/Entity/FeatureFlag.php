@@ -41,4 +41,27 @@ final readonly class FeatureFlag
 
         return $this->default;
     }
+
+    /**
+     * Возвращает вариант флага для A/B-тестирования.
+     * Возвращает строковое значение первого сработавшего правила.
+     * Возвращает null, если ни одно правило не совпало.
+     */
+    public function getVariant(EvaluationContext $context): ?string
+    {
+        foreach ($this->rules as $rule) {
+            $condition = $rule['condition'] ?? '';
+
+            foreach ($this->specifications as $spec) {
+                if ($spec->supports($condition) && $spec->isSatisfiedBy($condition, $context)) {
+                    $value = $rule['value'] ?? null;
+
+                    // Возвращаем только если значение явно строковое (вариант теста)
+                    return is_string($value) ? $value : null;
+                }
+            }
+        }
+
+        return null;
+    }
 }
