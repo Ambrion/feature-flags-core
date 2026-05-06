@@ -8,6 +8,7 @@ use FeatureFlags\Core\Application\Service\FeatureFlagService;
 use FeatureFlags\Core\Domain\Entity\FeatureFlag;
 use FeatureFlags\Core\Domain\Repository\FlagRepositoryInterface;
 use FeatureFlags\Core\Domain\Specification\CategorySpecification;
+use FeatureFlags\Core\Domain\Specification\UserRoleSpecification;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 use PHPUnit\Framework\TestCase;
 
@@ -86,6 +87,36 @@ final class FeatureFlagServiceTest extends TestCase
         $result = $service->isEnabled('promo_banner', ['category' => 'phones']);
 
         // ASSERT: Ожидаем true, потому что phones есть в списке
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Поддержка условия "user_role=manager".
+     * Сценарий: Флаг с правилом "user_role=manager"
+     * должен вернуть true, если контекст содержит user_role=manager
+     */
+    public function test_flag_with_user_role_rule(): void
+    {
+        // ARRANGE: Флаг с ролевым правилом
+        $flag = new FeatureFlag(
+            name: new FlagName('admin_dashboard'),
+            default: false,
+            rules: [['condition' => 'user_role=manager', 'value' => true]],
+            specifications: [
+                new CategorySpecification(),
+                new UserRoleSpecification()
+            ]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Контекст с matching ролью
+        $result = $service->isEnabled('admin_dashboard', ['user_role' => 'manager']);
+
+        // ASSERT: Ожидаем true, потому что роль совпала
         $this->assertTrue($result);
     }
 }
