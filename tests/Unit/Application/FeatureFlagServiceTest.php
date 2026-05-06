@@ -256,4 +256,31 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT: Ожидаем true, потому что ID есть в списке
         $this->assertTrue($result);
     }
+
+    /**
+     * Поддержка условия "target_id=VALUE" (точное совпадение).
+     * Сценарий: Флаг с правилом "target_id=101"
+     * должен вернуть true, если контекст содержит target_id=101.
+     */
+    public function test_flag_with_target_id_exact_match_rule(): void
+    {
+        // ARRANGE: Флаг с правилом точного совпадения
+        $flag = new FeatureFlag(
+            name: new FlagName('exact_match_flag'),
+            default: false,
+            rules: [['condition' => 'target_id=101', 'value' => true]],
+            specifications: [new TargetIdSpecification()]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Контекст с совпадающим ID
+        $result = $service->isEnabled('exact_match_flag', ['target_id' => 101]);
+
+        // ASSERT
+        $this->assertTrue($result);
+    }
 }
