@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace FeatureFlags\Core\Domain\Specification;
 
+use DateMalformedStringException;
 use FeatureFlags\Core\Domain\ValueObject\EvaluationContext;
 use DateTimeImmutable;
 
@@ -19,10 +20,13 @@ final class DateBetweenSpecification implements ConditionSpecificationInterface
         return (bool)preg_match('/^current_date\s+BETWEEN\s+\d{2}-\d{2}\s+AND\s+\d{2}-\d{2}$/i', $condition);
     }
 
+    /**
+     * @throws DateMalformedStringException
+     */
     public function isSatisfiedBy(string $condition, EvaluationContext $context): bool
     {
         $currentDateStr = $context->get('current_date');
-        if ($currentDateStr === null) {
+        if (!is_string($currentDateStr)) {
             return false;
         }
 
@@ -43,6 +47,10 @@ final class DateBetweenSpecification implements ConditionSpecificationInterface
         $year = $current->format('Y');
         $start = DateTimeImmutable::createFromFormat('Y-m-d', "{$year}-{$startMd}");
         $end = DateTimeImmutable::createFromFormat('Y-m-d', "{$year}-{$endMd}");
+
+        if (!$start || !$end) {
+            return false;
+        }
 
         // Обработка диапазонов через смену года (напр. 12-20 AND 01-10)
         if ($start > $end) {

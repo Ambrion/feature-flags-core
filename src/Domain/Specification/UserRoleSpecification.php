@@ -25,7 +25,11 @@ final class UserRoleSpecification implements ConditionSpecificationInterface
             return false;
         }
 
-        $current = strtolower((string)$role);
+        if (!is_string($role)) {
+            return false;
+        }
+
+        $current = strtolower($role);
 
         // Поддержка: user_role=manager
         if (preg_match('/^user_role\s*=\s*(\w+)$/i', $condition, $match)) {

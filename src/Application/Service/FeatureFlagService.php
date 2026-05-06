@@ -13,7 +13,6 @@ use FeatureFlags\Core\Domain\ValueObject\FlagName;
 /**
  * Application Service: оркестратор бизнес-логики фич-флагов.
  * Принимает запрос, делегирует домену/репозиторию, возвращает результат.
- * Минимальная реализация для прохождения первого теста (Красный -> Зелёный).
  */
 final readonly class FeatureFlagService
 {
@@ -24,6 +23,12 @@ final readonly class FeatureFlagService
     {
     }
 
+    /**
+     * Проверяет, включен ли флаг для заданного контекста.
+     *
+     * @param string $flagName Имя флага
+     * @param array<string, scalar|null> $context Контекст оценки (ключ => значение)
+     */
     public function isEnabled(string $flagName, array $context = []): bool
     {
         $flag = $this->repository->findByName(new FlagName($flagName));
@@ -41,6 +46,9 @@ final readonly class FeatureFlagService
      * Получает вариант флага для A/B-тестирования.
      * Делегирует оценку доменной сущности.
      * Возвращает null, если флаг не найден или правила не сработали.
+     *
+     * @param string $flagName Имя флага
+     * @param array<string, scalar|null> $context Контекст оценки (ключ => значение)
      */
     public function getVariant(string $flagName, array $context = []): ?string
     {

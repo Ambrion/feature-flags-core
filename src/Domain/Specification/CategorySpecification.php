@@ -26,6 +26,10 @@ final class CategorySpecification implements ConditionSpecificationInterface
             return false;
         }
 
+        if (!is_string($category) && !is_numeric($category)) {
+            return false;
+        }
+
         $current = strtolower((string)$category);
 
         // Поддержка: category=electronics

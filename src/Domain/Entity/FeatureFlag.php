@@ -16,6 +16,9 @@ use FeatureFlags\Core\Domain\ValueObject\FlagName;
 final readonly class FeatureFlag
 {
     /**
+     * @param FlagName $name
+     * @param bool $default
+     * @param array<array{condition?: string, value: mixed}> $rules
      * @param ConditionSpecificationInterface[] $specifications
      */
     public function __construct(

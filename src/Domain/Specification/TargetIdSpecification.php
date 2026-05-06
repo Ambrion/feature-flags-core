@@ -24,7 +24,11 @@ final class TargetIdSpecification implements ConditionSpecificationInterface
         if ($targetId === null) {
             return false;
         }
-        
+
+        if (!is_string($targetId) && !is_numeric($targetId)) {
+            return false;
+        }
+
         $targetIdStr = (string)$targetId;
 
         // Точное совпадение: target_id=VALUE

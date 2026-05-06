@@ -16,7 +16,7 @@ interface FlagUsageLoggerInterface
      *
      * @param string $flagName Имя флага
      * @param bool $result Результат оценки (true/false)
-     * @param array $context Контекст вызова (адаптер должен фильтровать чувствительные данные)
+     * @param array<string, scalar|null> $context Контекст вызова (адаптер должен фильтровать чувствительные данные)
      */
     public function log(string $flagName, bool $result, array $context = []): void;
 
@@ -25,7 +25,7 @@ interface FlagUsageLoggerInterface
      *
      * @param string $flagName Имя флага
      * @param string|null $variant Выбранный вариант или null
-     * @param array $context Контекст вызова
+     * @param array<string, scalar|null> $context Контекст вызова
      */
     public function logVariant(string $flagName, ?string $variant, array $context = []): void;
 }

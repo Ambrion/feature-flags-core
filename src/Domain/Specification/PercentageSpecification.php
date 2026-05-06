@@ -34,6 +34,10 @@ final class PercentageSpecification implements ConditionSpecificationInterface
             return false;
         }
 
+        if (!is_string($hashValue) && !is_numeric($hashValue) && !is_bool($hashValue) && !($hashValue instanceof \Stringable)) {
+            return false;
+        }
+
         // Детерминированное преобразование хеша в число 0-99
         // abs() гарантирует неотрицательное значение на всех архитектурах PHP
         $bucket = abs(crc32((string)$hashValue)) % 100;
