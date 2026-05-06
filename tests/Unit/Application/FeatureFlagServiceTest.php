@@ -9,6 +9,7 @@ use FeatureFlags\Core\Domain\Entity\FeatureFlag;
 use FeatureFlags\Core\Domain\Repository\FlagRepositoryInterface;
 use FeatureFlags\Core\Domain\Specification\CategorySpecification;
 use FeatureFlags\Core\Domain\Specification\DateBetweenSpecification;
+use FeatureFlags\Core\Domain\Specification\PercentageSpecification;
 use FeatureFlags\Core\Domain\Specification\UserRoleSpecification;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 use PHPUnit\Framework\TestCase;
@@ -145,6 +146,32 @@ final class FeatureFlagServiceTest extends TestCase
         $result = $service->isEnabled('new_year_banner', ['current_date' => '2025-12-15']);
 
         // ASSERT: Ожидаем true, потому что дата попадает в диапазон
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Поддержка условия "user_hash PERCENTAGE 100".
+     * Сценарий: При 100% трафика флаг должен возвращать true для любого хеша.
+     */
+    public function test_flag_with_percentage_100_rule(): void
+    {
+        // ARRANGE: Флаг с правилом 100% rollout
+        $flag = new FeatureFlag(
+            name: new FlagName('canary_release'),
+            default: false,
+            rules: [['condition' => 'user_hash PERCENTAGE 100', 'value' => true]],
+            specifications: [new PercentageSpecification()]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Любой хеш должен попасть в 100%
+        $result = $service->isEnabled('canary_release', ['user_hash' => 'test_session_abc123']);
+
+        // ASSERT
         $this->assertTrue($result);
     }
 }
