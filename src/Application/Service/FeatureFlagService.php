@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace FeatureFlags\Core\Application\Service;
 
+use FeatureFlags\Core\Domain\Logger\FlagUsageLoggerInterface;
+use FeatureFlags\Core\Domain\Logger\NullFlagUsageLogger;
 use FeatureFlags\Core\Domain\Repository\FlagRepositoryInterface;
 use FeatureFlags\Core\Domain\ValueObject\EvaluationContext;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
@@ -16,7 +18,8 @@ use FeatureFlags\Core\Domain\ValueObject\FlagName;
 final readonly class FeatureFlagService
 {
     public function __construct(
-        private FlagRepositoryInterface $repository
+        private FlagRepositoryInterface  $repository,
+        private FlagUsageLoggerInterface $logger = new NullFlagUsageLogger()
     )
     {
     }
@@ -25,10 +28,12 @@ final readonly class FeatureFlagService
     {
         $flag = $this->repository->findByName(new FlagName($flagName));
 
-        if ($flag === null) {
-            return false;
-        }
+        // 1. Оцениваем флаг
+        $result = $flag !== null && $flag->evaluate(EvaluationContext::fromArray($context));
 
-        return $flag->evaluate(EvaluationContext::fromArray($context));
+        // 2. Логируем вызов (всегда, даже если логгер — Null Object)
+        $this->logger->log($flagName, $result, $context);
+
+        return $result;
     }
 }

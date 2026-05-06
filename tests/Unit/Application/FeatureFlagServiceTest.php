@@ -6,6 +6,7 @@ namespace FeatureFlags\Core\Tests\Unit\Application;
 
 use FeatureFlags\Core\Application\Service\FeatureFlagService;
 use FeatureFlags\Core\Domain\Entity\FeatureFlag;
+use FeatureFlags\Core\Domain\Logger\FlagUsageLoggerInterface;
 use FeatureFlags\Core\Domain\Repository\FlagRepositoryInterface;
 use FeatureFlags\Core\Domain\Specification\CategorySpecification;
 use FeatureFlags\Core\Domain\Specification\DateBetweenSpecification;
@@ -355,5 +356,35 @@ final class FeatureFlagServiceTest extends TestCase
             ]),
             'Default value should be returned when no rules match'
         );
+    }
+
+    /**
+     * Сервис должен вызывать логгер при оценке флага.
+     */
+    public function test_evaluate_calls_logger(): void
+    {
+        // ARRANGE: Мок логгера
+        $logger = $this->createMock(FlagUsageLoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('log')
+            ->with(
+                'test_flag',
+                true,
+                $this->callback(fn(array $ctx) => ($ctx['role'] ?? '') === 'admin')
+            );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn(
+            new FeatureFlag(new FlagName('test_flag'), default: true)
+        );
+
+        // Сервис требует логгер во втором аргументе (пока не реализовано)
+        $service = new FeatureFlagService($repository, $logger);
+
+        // ACT
+        $result = $service->isEnabled('test_flag', ['role' => 'admin']);
+
+        // ASSERT
+        $this->assertTrue($result);
     }
 }
