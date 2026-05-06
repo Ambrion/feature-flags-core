@@ -16,7 +16,7 @@ interface FlagRepositoryInterface
     /**
      * Находит конфигурацию флага по имени.
      *
-     * @param FlagName $flagName Имя флага (Value Object)
+     * @param  FlagName  $flagName  Имя флага (Value Object)
      * @return FeatureFlag|null Сущность флага или null, если не найден
      */
     public function findByName(FlagName $flagName): ?FeatureFlag;

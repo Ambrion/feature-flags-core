@@ -16,19 +16,15 @@ use FeatureFlags\Core\Domain\ValueObject\FlagName;
 final readonly class FeatureFlag
 {
     /**
-     * @param FlagName $name
-     * @param bool $default
-     * @param array<array{condition?: string, value: mixed}> $rules
-     * @param ConditionSpecificationInterface[] $specifications
+     * @param  array<array{condition?: string, value: mixed}>  $rules
+     * @param  ConditionSpecificationInterface[]  $specifications
      */
     public function __construct(
         public FlagName $name,
-        public bool     $default = false,
-        public array    $rules = [],
-        private array   $specifications = []
-    )
-    {
-    }
+        public bool $default = false,
+        public array $rules = [],
+        private array $specifications = []
+    ) {}
 
     public function evaluate(EvaluationContext $context): bool
     {
@@ -37,7 +33,7 @@ final readonly class FeatureFlag
 
             foreach ($this->specifications as $spec) {
                 if ($spec->supports($condition) && $spec->isSatisfiedBy($condition, $context)) {
-                    return (bool)($rule['value'] ?? false);
+                    return (bool) ($rule['value'] ?? false);
                 }
             }
         }

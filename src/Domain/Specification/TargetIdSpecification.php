@@ -15,7 +15,7 @@ final class TargetIdSpecification implements ConditionSpecificationInterface
 {
     public function supports(string $condition): bool
     {
-        return (bool)preg_match('/^target_id\s*(IN\s*\([^)]+\)|=\s*[\w-]+)$/i', $condition);
+        return (bool) preg_match('/^target_id\s*(IN\s*\([^)]+\)|=\s*[\w-]+)$/i', $condition);
     }
 
     public function isSatisfiedBy(string $condition, EvaluationContext $context): bool
@@ -25,11 +25,11 @@ final class TargetIdSpecification implements ConditionSpecificationInterface
             return false;
         }
 
-        if (!is_string($targetId) && !is_numeric($targetId)) {
+        if (! is_string($targetId) && ! is_numeric($targetId)) {
             return false;
         }
 
-        $targetIdStr = (string)$targetId;
+        $targetIdStr = (string) $targetId;
 
         // Точное совпадение: target_id=VALUE
         if (preg_match('/^target_id\s*=\s*([\w-]+)$/i', $condition, $matches)) {

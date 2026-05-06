@@ -14,12 +14,11 @@ final readonly class FlagName
 {
     public function __construct(
         public string $value
-    )
-    {
+    ) {
         if ($value === '') {
             throw new InvalidArgumentException('Flag name cannot be empty');
         }
-        if (!preg_match('/^[a-z][a-z0-9_]*$/', $value)) {
+        if (! preg_match('/^[a-z][a-z0-9_]*$/', $value)) {
             throw new InvalidArgumentException(
                 "Invalid flag name '{$value}'. Use snake_case (e.g. show_new_year_banner)."
             );

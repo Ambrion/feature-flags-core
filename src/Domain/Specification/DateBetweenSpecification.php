@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace FeatureFlags\Core\Domain\Specification;
 
 use DateMalformedStringException;
-use FeatureFlags\Core\Domain\ValueObject\EvaluationContext;
 use DateTimeImmutable;
+use FeatureFlags\Core\Domain\ValueObject\EvaluationContext;
 
 /**
  * Спецификация для условий "current_date BETWEEN MM-DD AND MM-DD".
@@ -17,7 +17,7 @@ final class DateBetweenSpecification implements ConditionSpecificationInterface
 {
     public function supports(string $condition): bool
     {
-        return (bool)preg_match('/^current_date\s+BETWEEN\s+\d{2}-\d{2}\s+AND\s+\d{2}-\d{2}$/i', $condition);
+        return (bool) preg_match('/^current_date\s+BETWEEN\s+\d{2}-\d{2}\s+AND\s+\d{2}-\d{2}$/i', $condition);
     }
 
     /**
@@ -26,12 +26,12 @@ final class DateBetweenSpecification implements ConditionSpecificationInterface
     public function isSatisfiedBy(string $condition, EvaluationContext $context): bool
     {
         $currentDateStr = $context->get('current_date');
-        if (!is_string($currentDateStr)) {
+        if (! is_string($currentDateStr)) {
             return false;
         }
 
         // Парсим: current_date BETWEEN MM-DD AND MM-DD
-        if (!preg_match('/^current_date\s+BETWEEN\s+(\d{2}-\d{2})\s+AND\s+(\d{2}-\d{2})$/i', $condition, $matches)) {
+        if (! preg_match('/^current_date\s+BETWEEN\s+(\d{2}-\d{2})\s+AND\s+(\d{2}-\d{2})$/i', $condition, $matches)) {
             return false;
         }
 
@@ -40,7 +40,7 @@ final class DateBetweenSpecification implements ConditionSpecificationInterface
 
         // Текущая дата из контекста
         $current = DateTimeImmutable::createFromFormat('Y-m-d', $currentDateStr);
-        if (!$current) {
+        if (! $current) {
             return false;
         }
 
@@ -48,7 +48,7 @@ final class DateBetweenSpecification implements ConditionSpecificationInterface
         $start = DateTimeImmutable::createFromFormat('Y-m-d', "{$year}-{$startMd}");
         $end = DateTimeImmutable::createFromFormat('Y-m-d', "{$year}-{$endMd}");
 
-        if (!$start || !$end) {
+        if (! $start || ! $end) {
             return false;
         }
 

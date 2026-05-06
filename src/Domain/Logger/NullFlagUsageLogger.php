@@ -12,7 +12,7 @@ namespace FeatureFlags\Core\Domain\Logger;
 final class NullFlagUsageLogger implements FlagUsageLoggerInterface
 {
     /**
-     * @param array<string, scalar|null> $context
+     * @param  array<string, scalar|null>  $context
      */
     public function log(string $flagName, bool $result, array $context = []): void
     {
@@ -20,9 +20,7 @@ final class NullFlagUsageLogger implements FlagUsageLoggerInterface
     }
 
     /**
-     * @param array<string, scalar|null> $context
+     * @param  array<string, scalar|null>  $context
      */
-    public function logVariant(string $flagName, ?string $variant, array $context = []): void
-    {
-    }
+    public function logVariant(string $flagName, ?string $variant, array $context = []): void {}
 }

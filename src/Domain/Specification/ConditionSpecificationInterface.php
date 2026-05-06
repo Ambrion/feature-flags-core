@@ -16,15 +16,15 @@ interface ConditionSpecificationInterface
     /**
      * Проверяет, может ли эта спецификация обработать данное условие.
      *
-     * @param string $condition Строка условия, например "category=electronics"
+     * @param  string  $condition  Строка условия, например "category=electronics"
      */
     public function supports(string $condition): bool;
 
     /**
      * Проверяет, выполнено ли условие в данном контексте.
      *
-     * @param string $condition Строка условия
-     * @param EvaluationContext $context Контекст оценки
+     * @param  string  $condition  Строка условия
+     * @param  EvaluationContext  $context  Контекст оценки
      */
     public function isSatisfiedBy(string $condition, EvaluationContext $context): bool;
 }

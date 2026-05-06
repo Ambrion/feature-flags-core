@@ -45,7 +45,7 @@ final class FeatureFlagServiceTest extends TestCase
      */
     public function test_flag_with_category_rule_evaluates_context(): void
     {
-        $specifications = [new CategorySpecification()];
+        $specifications = [new CategorySpecification];
 
         // ARRANGE: Флаг с одним правилом
         $flag = new FeatureFlag(
@@ -79,7 +79,7 @@ final class FeatureFlagServiceTest extends TestCase
             name: new FlagName('promo_banner'),
             default: false,
             rules: [['condition' => 'category IN (electronics,phones)', 'value' => true]],
-            specifications: [new CategorySpecification()]
+            specifications: [new CategorySpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -107,8 +107,8 @@ final class FeatureFlagServiceTest extends TestCase
             default: false,
             rules: [['condition' => 'user_role=manager', 'value' => true]],
             specifications: [
-                new CategorySpecification(),
-                new UserRoleSpecification()
+                new CategorySpecification,
+                new UserRoleSpecification,
             ]
         );
 
@@ -136,7 +136,7 @@ final class FeatureFlagServiceTest extends TestCase
             name: new FlagName('new_year_banner'),
             default: false,
             rules: [['condition' => 'current_date BETWEEN 12-01 AND 12-31', 'value' => true]],
-            specifications: [new DateBetweenSpecification()]
+            specifications: [new DateBetweenSpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -162,7 +162,7 @@ final class FeatureFlagServiceTest extends TestCase
             name: new FlagName('canary_release'),
             default: false,
             rules: [['condition' => 'user_hash PERCENTAGE 100', 'value' => true]],
-            specifications: [new PercentageSpecification()]
+            specifications: [new PercentageSpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -190,7 +190,7 @@ final class FeatureFlagServiceTest extends TestCase
             name: new FlagName('canary_zero'),
             default: false, // Ожидаем возврат именно этого значения
             rules: [['condition' => 'user_hash PERCENTAGE 0', 'value' => true]],
-            specifications: [new PercentageSpecification()]
+            specifications: [new PercentageSpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -216,9 +216,9 @@ final class FeatureFlagServiceTest extends TestCase
             default: true, // Дефолт true, чтобы доказать переопределение
             rules: [
                 // PERCENTAGE 100 + value=false = "всем вернуть false"
-                ['condition' => 'user_hash PERCENTAGE 100', 'value' => false]
+                ['condition' => 'user_hash PERCENTAGE 100', 'value' => false],
             ],
-            specifications: [new PercentageSpecification()]
+            specifications: [new PercentageSpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -243,7 +243,7 @@ final class FeatureFlagServiceTest extends TestCase
             name: new FlagName('special_promo'),
             default: false,
             rules: [['condition' => 'target_id IN (101, 102)', 'value' => true]],
-            specifications: [new TargetIdSpecification()]
+            specifications: [new TargetIdSpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -270,7 +270,7 @@ final class FeatureFlagServiceTest extends TestCase
             name: new FlagName('exact_match_flag'),
             default: false,
             rules: [['condition' => 'target_id=101', 'value' => true]],
-            specifications: [new TargetIdSpecification()]
+            specifications: [new TargetIdSpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -305,9 +305,9 @@ final class FeatureFlagServiceTest extends TestCase
                 ['condition' => 'target_id=999', 'value' => false],
             ],
             specifications: [
-                new UserRoleSpecification(),
-                new CategorySpecification(),
-                new TargetIdSpecification(),
+                new UserRoleSpecification,
+                new CategorySpecification,
+                new TargetIdSpecification,
             ]
         );
 
@@ -370,7 +370,7 @@ final class FeatureFlagServiceTest extends TestCase
             ->with(
                 'test_flag',
                 true,
-                $this->callback(fn(array $ctx) => ($ctx['role'] ?? '') === 'admin')
+                $this->callback(fn (array $ctx) => ($ctx['role'] ?? '') === 'admin')
             );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -393,7 +393,7 @@ final class FeatureFlagServiceTest extends TestCase
      * Сценарий: Метод getVariant() возвращает строковое значение
      * первого сработавшего правила, или null, если флаг не найден.
      */
-    public function test_getVariant_returns_matching_variant(): void
+    public function test_get_variant_returns_matching_variant(): void
     {
         // ARRANGE: Флаг с правилами, возвращающими строки (варианты)
         $flag = new FeatureFlag(
@@ -406,8 +406,8 @@ final class FeatureFlagServiceTest extends TestCase
                 ['condition' => 'user_hash PERCENTAGE 100', 'value' => 'variant_b'],
             ],
             specifications: [
-                new UserRoleSpecification(),
-                new PercentageSpecification(),
+                new UserRoleSpecification,
+                new PercentageSpecification,
             ]
         );
 
@@ -419,7 +419,7 @@ final class FeatureFlagServiceTest extends TestCase
         // ACT: Гость (не админ) + 100% трафика -> должен попасть в variant_b
         $variant = $service->getVariant('header_ab_test', [
             'user_role' => 'guest',
-            'user_hash' => 'test_session_xyz'
+            'user_hash' => 'test_session_xyz',
         ]);
 
         // ASSERT
@@ -431,7 +431,7 @@ final class FeatureFlagServiceTest extends TestCase
      * Сценарий: Если ни одно правило не сработало, метод должен вернуть null,
      * а не дефолтное значение или ошибку
      */
-    public function test_getVariant_returns_null_when_no_rules_match(): void
+    public function test_get_variant_returns_null_when_no_rules_match(): void
     {
         // ARRANGE: Флаг с правилами, которые НЕ совпадут с переданным контекстом
         $flag = new FeatureFlag(
@@ -444,8 +444,8 @@ final class FeatureFlagServiceTest extends TestCase
                 ['condition' => 'category=electronics', 'value' => 'variant_b'],
             ],
             specifications: [
-                new UserRoleSpecification(),
-                new CategorySpecification(),
+                new UserRoleSpecification,
+                new CategorySpecification,
             ]
         );
 
@@ -457,7 +457,7 @@ final class FeatureFlagServiceTest extends TestCase
         $variant = $service->getVariant('ab_test_variant', [
             'user_role' => 'guest',
             'category' => 'clothing',
-            'user_hash' => 'test_123'
+            'user_hash' => 'test_123',
         ]);
 
         // ASSERT: Ожидаем null
@@ -467,7 +467,7 @@ final class FeatureFlagServiceTest extends TestCase
     /**
      * Сервис должен вызывать логирование варианта для A/B-тестов.
      */
-    public function test_getVariant_calls_variant_logger(): void
+    public function test_get_variant_calls_variant_logger(): void
     {
         // ARRANGE: Мок логгера с ожиданием вызова logVariant()
         $logger = $this->createMock(FlagUsageLoggerInterface::class);
@@ -476,14 +476,14 @@ final class FeatureFlagServiceTest extends TestCase
             ->with(
                 'header_ab_test',
                 'variant_b',
-                $this->callback(fn(array $ctx) => isset($ctx['user_hash']))
+                $this->callback(fn (array $ctx) => isset($ctx['user_hash']))
             );
 
         $flag = new FeatureFlag(
             name: new FlagName('header_ab_test'),
             default: false,
             rules: [['condition' => 'user_hash PERCENTAGE 100', 'value' => 'variant_b']],
-            specifications: [new PercentageSpecification()]
+            specifications: [new PercentageSpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
@@ -504,7 +504,7 @@ final class FeatureFlagServiceTest extends TestCase
      * Сценарий: При многократном вызове getVariant() с одним и тем же user_hash
      * должен всегда возвращаться один и тот же вариант.
      */
-    public function test_getVariant_is_deterministic_for_same_user_hash(): void
+    public function test_get_variant_is_deterministic_for_same_user_hash(): void
     {
         // ARRANGE: Флаг с распределением 50/50
         $flag = new FeatureFlag(
@@ -516,7 +516,7 @@ final class FeatureFlagServiceTest extends TestCase
                 // Оставшиеся 50% попадают сюда (buckets 50-99)
                 ['condition' => 'user_hash PERCENTAGE 100', 'value' => 'variant_b'],
             ],
-            specifications: [new PercentageSpecification()]
+            specifications: [new PercentageSpecification]
         );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);

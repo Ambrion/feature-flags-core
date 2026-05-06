@@ -15,7 +15,7 @@ final class UserRoleSpecification implements ConditionSpecificationInterface
     public function supports(string $condition): bool
     {
         // Ловим: user_role=... ИЛИ user_role IN (...)
-        return (bool)preg_match('/^user_role\s*(=|IN\s*\()/i', $condition);
+        return (bool) preg_match('/^user_role\s*(=|IN\s*\()/i', $condition);
     }
 
     public function isSatisfiedBy(string $condition, EvaluationContext $context): bool
@@ -25,7 +25,7 @@ final class UserRoleSpecification implements ConditionSpecificationInterface
             return false;
         }
 
-        if (!is_string($role)) {
+        if (! is_string($role)) {
             return false;
         }
 

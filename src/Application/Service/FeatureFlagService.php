@@ -17,17 +17,15 @@ use FeatureFlags\Core\Domain\ValueObject\FlagName;
 final readonly class FeatureFlagService
 {
     public function __construct(
-        private FlagRepositoryInterface  $repository,
-        private FlagUsageLoggerInterface $logger = new NullFlagUsageLogger()
-    )
-    {
-    }
+        private FlagRepositoryInterface $repository,
+        private FlagUsageLoggerInterface $logger = new NullFlagUsageLogger
+    ) {}
 
     /**
      * Проверяет, включен ли флаг для заданного контекста.
      *
-     * @param string $flagName Имя флага
-     * @param array<string, scalar|null> $context Контекст оценки (ключ => значение)
+     * @param  string  $flagName  Имя флага
+     * @param  array<string, scalar|null>  $context  Контекст оценки (ключ => значение)
      */
     public function isEnabled(string $flagName, array $context = []): bool
     {
@@ -47,8 +45,8 @@ final readonly class FeatureFlagService
      * Делегирует оценку доменной сущности.
      * Возвращает null, если флаг не найден или правила не сработали.
      *
-     * @param string $flagName Имя флага
-     * @param array<string, scalar|null> $context Контекст оценки (ключ => значение)
+     * @param  string  $flagName  Имя флага
+     * @param  array<string, scalar|null>  $context  Контекст оценки (ключ => значение)
      */
     public function getVariant(string $flagName, array $context = []): ?string
     {
