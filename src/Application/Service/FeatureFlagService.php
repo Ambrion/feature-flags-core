@@ -46,6 +46,12 @@ final readonly class FeatureFlagService
     {
         $flag = $this->repository->findByName(new FlagName($flagName));
 
-        return $flag?->getVariant(EvaluationContext::fromArray($context));
+        // 1. Оцениваем вариант
+        $variant = $flag?->getVariant(EvaluationContext::fromArray($context));
+
+        // 2. Логируем выбор варианта (даже если это null)
+        $this->logger->logVariant($flagName, $variant, $context);
+
+        return $variant;
     }
 }

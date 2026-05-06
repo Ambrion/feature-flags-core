@@ -19,4 +19,13 @@ interface FlagUsageLoggerInterface
      * @param array $context Контекст вызова (адаптер должен фильтровать чувствительные данные)
      */
     public function log(string $flagName, bool $result, array $context = []): void;
+
+    /**
+     * Логирует вызов A/B-теста (мульти-вариантного флага).
+     *
+     * @param string $flagName Имя флага
+     * @param string|null $variant Выбранный вариант или null
+     * @param array $context Контекст вызова
+     */
+    public function logVariant(string $flagName, ?string $variant, array $context = []): void;
 }

@@ -463,4 +463,39 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT: Ожидаем null
         $this->assertNull($variant);
     }
+
+    /**
+     * Сервис должен вызывать логирование варианта для A/B-тестов.
+     */
+    public function test_getVariant_calls_variant_logger(): void
+    {
+        // ARRANGE: Мок логгера с ожиданием вызова logVariant()
+        $logger = $this->createMock(FlagUsageLoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('logVariant') // Метод ещё не существует в интерфейсе
+            ->with(
+                'header_ab_test',
+                'variant_b',
+                $this->callback(fn(array $ctx) => isset($ctx['user_hash']))
+            );
+
+        $flag = new FeatureFlag(
+            name: new FlagName('header_ab_test'),
+            default: false,
+            rules: [['condition' => 'user_hash PERCENTAGE 100', 'value' => 'variant_b']],
+            specifications: [new PercentageSpecification()]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+
+        // Инжектим логгер в сервис
+        $service = new FeatureFlagService($repository, $logger);
+
+        // ACT
+        $variant = $service->getVariant('header_ab_test', ['user_hash' => 'session_xyz']);
+
+        // ASSERT
+        $this->assertEquals('variant_b', $variant);
+    }
 }
