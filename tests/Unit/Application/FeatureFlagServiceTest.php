@@ -196,7 +196,7 @@ final class FeatureFlagServiceTest extends TestCase
         $repository->method('findByName')->willReturn($flag);
         $service = new FeatureFlagService($repository);
 
-        // ACT: PERCENTAGE 0 → условие не выполняется → правило не применяется
+        // ACT: PERCENTAGE 0 -> условие не выполняется -> правило не применяется
         $result = $service->isEnabled('canary_zero', ['user_hash' => 'any_hash_123']);
 
         // ASSERT: Возвращается default, потому что правило не сработало
@@ -282,5 +282,78 @@ final class FeatureFlagServiceTest extends TestCase
 
         // ASSERT
         $this->assertTrue($result);
+    }
+
+    /**
+     * Интеграционный тест — приоритет правил и short-circuit.
+     * Сценарий: Флаг с несколькими правилами должен вернуть значение
+     * первого сработавшего правила, игнорируя остальные.
+     */
+    public function test_flag_rules_priority_short_circuit(): void
+    {
+        // ARRANGE: Флаг с тремя правилами разного типа
+        $flag = new FeatureFlag(
+            name: new FlagName('complex_flag'),
+            default: false, // Базовое значение — ложь
+            rules: [
+                // Правило 1: админам — всегда true (высший приоритет)
+                ['condition' => 'user_role=admin', 'value' => true],
+                // Правило 2: категория electronics — true, но только если не админ
+                ['condition' => 'category=electronics', 'value' => true],
+                // Правило 3: конкретный ID — false (явное исключение)
+                ['condition' => 'target_id=999', 'value' => false],
+            ],
+            specifications: [
+                new UserRoleSpecification(),
+                new CategorySpecification(),
+                new TargetIdSpecification(),
+            ]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT & ASSERT:
+
+        // 1. Админ -> правило 1 срабатывает первым -> true (игнорируем категорию и ID)
+        $this->assertTrue(
+            $service->isEnabled('complex_flag', [
+                'user_role' => 'admin',
+                'category' => 'clothing', // не electronics
+                'target_id' => 999,        // должен быть false, но админ побеждает
+            ]),
+            'Admin role should override other rules'
+        );
+
+        // 2. Не админ, но electronics -> правило 2 -> true
+        $this->assertTrue(
+            $service->isEnabled('complex_flag', [
+                'user_role' => 'manager',
+                'category' => 'electronics',
+                'target_id' => 123,
+            ]),
+            'Category match should return true when role does not match'
+        );
+
+        // 3. Не админ, не electronics, но target_id=999 -> правило 3 -> false
+        $this->assertFalse(
+            $service->isEnabled('complex_flag', [
+                'user_role' => 'guest',
+                'category' => 'clothing',
+                'target_id' => 999,
+            ]),
+            'Target ID rule should apply when higher-priority rules do not match'
+        );
+
+        // 4. Ничего не совпало -> возвращается default (false)
+        $this->assertFalse(
+            $service->isEnabled('complex_flag', [
+                'user_role' => 'guest',
+                'category' => 'clothing',
+                'target_id' => 123,
+            ]),
+            'Default value should be returned when no rules match'
+        );
     }
 }
