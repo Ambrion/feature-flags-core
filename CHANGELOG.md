@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Namespace migrated to `FeatureFlags\Core\*`
 - PHP requirement bumped to `^8.3`
 
+### Migration Notes
+> ⚠️ If storing flags in a database, change `default_value` column from `BOOLEAN` to `JSON` to support polymorphic defaults. Laravel's `'json'` cast handles serialization automatically.
+
 ### Fixed
 - `PercentageSpecification` correctly handles `0%` and `100%` edge cases
 - `TargetIdSpecification::supports()` regex allows no-space syntax (`target_id=101`)
