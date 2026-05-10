@@ -131,6 +131,21 @@ public function logVariant(string $flagName, ?string $variant, array $context = 
 ```
 Use `NullFlagUsageLogger` in dev/tests. Swap to `DatabaseLogger` or `FileLogger` in production.
 
+### 📊 Analytics: Getting Variant Weight
+
+For statistical analysis of A/B tests, use `getVariantWeight()` to retrieve the normalized weight (0.0-1.0) of the assigned variant:
+
+```php
+$variant = $flagService->getVariant('checkout_test', $context);
+$weight = $flagService->getVariantWeight('checkout_test', $context); // 0.34
+
+// Normalize metrics for fair comparison
+$normalizedConversion = $rawConversion / ($weight ?: 1);
+```
+> 💡 Note: Weight is only returned for PERCENTAGE-based rules. Role-based, category-based, or other deterministic rules return null.
+
+---
+
 ## 🧪 Development & Testing
 ```bash
 composer install

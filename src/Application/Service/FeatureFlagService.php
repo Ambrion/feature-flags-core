@@ -60,4 +60,26 @@ final readonly class FeatureFlagService
 
         return $variant;
     }
+
+    /**
+     * Получает вес варианта флага для аналитики.
+     * Возвращает нормализованный вес (0.0-1.0) процентного правила,
+     * или null, если правило не процентное / не сработало.
+     *
+     * @param  string  $flagName  Имя флага
+     * @param  array<string, scalar|null>  $context  Контекст оценки
+     * @return float|null Вес варианта или null
+     */
+    public function getVariantWeight(string $flagName, array $context = []): ?float
+    {
+        $flag = $this->repository->findByName(new FlagName($flagName));
+
+        // Делегируем вычисление веса доменной сущности
+        $weight = $flag?->getVariantWeight(EvaluationContext::fromArray($context));
+
+        // Опционально: логирование (если понадобится аналитика весов)
+        // $this->logger->logWeight($flagName, $weight, $context);
+
+        return $weight;
+    }
 }

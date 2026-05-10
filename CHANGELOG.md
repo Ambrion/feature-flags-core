@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - v1.0.0-alpha
 ### Added
+- **`getVariantWeight(): ?float`** for analytics: returns normalized weight (0.0-1.0) of percentage-based rules (#JAM-7726)
+- Internal `RuleMatch` value object for reusable rule evaluation logic (#JAM-7726)
 - `FeatureFlagService::getVariant()` for A/B testing with deterministic rollout
 - `FlagUsageLoggerInterface::logVariant()` for variant tracking
 - `TargetIdSpecification` for `target_id=VALUE` and `target_id IN (...)`
@@ -15,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration-ready contracts (`FlagRepositoryInterface`, `FlagUsageLoggerInterface`)
 
 ### Changed
+- Refactored `FeatureFlag` internals: `findMatchingRuleValue()` → `findMatchingRule(): RuleMatch` for extensibility (#JAM-7726)
+- Extracted `extractPercentageWeight()` helper for deterministic weight calculation (#JAM-7726)
 - `FeatureFlag::evaluate()` uses short-circuit rule evaluation (first match wins)
 - Logger injection made optional with `NullFlagUsageLogger` as default
 - Namespace migrated to `FeatureFlags\Core\*`

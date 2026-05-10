@@ -15,6 +15,7 @@ use FeatureFlags\Core\Domain\Specification\TargetIdSpecification;
 use FeatureFlags\Core\Domain\Specification\UserRoleSpecification;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class FeatureFlagServiceTest extends TestCase
 {
@@ -674,5 +675,189 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT: Все результаты идентичны (детерминированность)
         $this->assertCount(1, array_unique($evalResults), 'evaluate() must be deterministic');
         $this->assertCount(1, array_unique($variantResults), 'getVariant() must be deterministic');
+    }
+
+    /**
+     * Сценарий: Правило с процентом возвращает корректный вес.
+     * user_hash PERCENTAGE 34 → вес 0.34 для пользователей, попавших в правило.
+     */
+    public function test_get_variant_weight_returns_percentage_for_matching_rule(): void
+    {
+        // ARRANGE: Флаг с процентным правилом
+        $flag = new FeatureFlag(
+            name: new FlagName('ab_test_weighted'),
+            default: 'A',
+            rules: [
+                ['condition' => 'user_hash PERCENTAGE 34', 'value' => 'B'],
+            ],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Хеш, который попадает в первые 34% (bucket < 34)
+        // Используем хеш, который гарантированно даст bucket = 10 (< 34)
+        $context = ['user_hash' => 'hash_bucket_10'];
+        $weight = $service->getVariantWeight('ab_test_weighted', $context);
+
+        // ASSERT: Вес должен быть 0.34 (34%)
+        $this->assertEquals(0.34, $weight);
+    }
+
+    /**
+     * Сценарий: Правило без процента возвращает null (нет веса).
+     * Например, rule по роли не имеет вероятностного распределения.
+     */
+    public function test_get_variant_weight_returns_null_for_non_percentage_rule(): void
+    {
+        // ARRANGE: Флаг с правилом по роли (не процентное)
+        $flag = new FeatureFlag(
+            name: new FlagName('role_based_flag'),
+            default: 'A',
+            rules: [
+                ['condition' => 'user_role=admin', 'value' => 'admin_variant'],
+            ],
+            specifications: [new UserRoleSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Контекст, удовлетворяющий правилу
+        $weight = $service->getVariantWeight('role_based_flag', ['user_role' => 'admin']);
+
+        // ASSERT: Нет процентного правила → вес null
+        $this->assertNull($weight);
+    }
+
+    /**
+     * Сценарий: Если правило не сработало → getVariantWeight() возвращает null.
+     * Даже если есть процентное правило, но пользователь не попал в него.
+     */
+    public function test_get_variant_weight_returns_null_when_rule_does_not_match(): void
+    {
+        // ARRANGE: Флаг с процентным правилом 34%
+        $flag = new FeatureFlag(
+            name: new FlagName('partial_rollout'),
+            default: 'A',
+            rules: [
+                ['condition' => 'user_hash PERCENTAGE 34', 'value' => 'B'],
+            ],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Хеш, который НЕ попадает в 34% (bucket >= 34)
+        $context = ['user_hash' => 'hash_bucket_50'];
+        $weight = $service->getVariantWeight('partial_rollout', $context);
+
+        // ASSERT: Правило не сработало → вес null
+        $this->assertNull($weight);
+    }
+
+    /**
+     * Сценарий: Детерминированность — один хеш = один вес.
+     * Проверяем, что вес не «плавает» при повторных вызовах.
+     */
+    public function test_get_variant_weight_is_deterministic_for_same_hash(): void
+    {
+        // ARRANGE: Флаг с процентным правилом
+        $flag = new FeatureFlag(
+            name: new FlagName('deterministic_weight'),
+            default: 'A',
+            rules: [
+                ['condition' => 'user_hash PERCENTAGE 50', 'value' => 'B'],
+            ],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        $userHash = 'consistent_hash_abc123';
+
+        // ACT: 20 вызовов с одним хешом
+        $weights = array_map(
+            fn () => $service->getVariantWeight('deterministic_weight', ['user_hash' => $userHash]),
+            range(1, 20)
+        );
+
+        // ASSERT: Все веса идентичны
+        $this->assertCount(1, array_unique($weights), 'Weight must be deterministic for same hash');
+    }
+
+    /**
+     * Сценарий: getVariantWeight() работает независимо от getVariant().
+     * Можно получить и вариант, и его вес в одном контексте.
+     */
+    public function test_get_variant_and_weight_can_be_called_together(): void
+    {
+        // ARRANGE
+        $flag = new FeatureFlag(
+            name: new FlagName('combined_test'),
+            default: 'A',
+            rules: [
+                ['condition' => 'user_hash PERCENTAGE 25', 'value' => 'B'],
+            ],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // Динамически находим хеши под текущую среду
+        $hashInRule = $this->findHashForPercentageRule(25, true);   // bucket < 25
+        $hashOutOfRule = $this->findHashForPercentageRule(25, false); // bucket >= 25
+
+        // ACT & ASSERT: для "попавшего" пользователя
+        $contextIn = ['user_hash' => $hashInRule];
+        $variant = $service->getVariant('combined_test', $contextIn);
+        $weight = $service->getVariantWeight('combined_test', $contextIn);
+
+        $this->assertSame('B', $variant, 'Variant should be B for hash in rule');
+        $this->assertEquals(0.25, $weight, 'Weight should be 0.25 for 25% rule');
+
+        // ACT & ASSERT: для "не попавшего"
+        $contextOut = ['user_hash' => $hashOutOfRule];
+        $variantOut = $service->getVariant('combined_test', $contextOut);
+        $weightOut = $service->getVariantWeight('combined_test', $contextOut);
+
+        $this->assertSame('A', $variantOut, 'Variant should be default A for hash out of rule');
+        $this->assertNull($weightOut, 'Weight should be null when rule does not match');
+    }
+
+    /**
+     * Находит строку, которая даёт бакет в нужном диапазоне для PERCENTAGE-правила.
+     *
+     * @param  int  $percentage  Процент правила (1-100)
+     * @param  bool  $shouldMatch  Должен ли хеш попасть в правило (true) или нет (false)
+     * @param  string  $prefix  Префикс для генерации кандидатов
+     * @return string Строка, гарантированно дающая нужный результат
+     */
+    private function findHashForPercentageRule(int $percentage, bool $shouldMatch, string $prefix = 'test_'): string
+    {
+        for ($i = 0; $i < 100000; $i++) {
+            $candidate = $prefix.$i;
+            $bucket = abs(crc32($candidate)) % 100;
+
+            if ($shouldMatch && $bucket < $percentage) {
+                return $candidate;
+            }
+            if (! $shouldMatch && $bucket >= $percentage) {
+                return $candidate;
+            }
+        }
+
+        throw new RuntimeException(
+            "Could not find hash for percentage=$percentage, shouldMatch=".($shouldMatch ? 'true' : 'false')
+        );
     }
 }
