@@ -535,4 +535,144 @@ final class FeatureFlagServiceTest extends TestCase
         $uniqueResults = array_unique($results);
         $this->assertCount(1, $uniqueResults, 'Same user_hash must always yield the same variant');
     }
+
+    /**
+     * Сценарий: Флаг для A/B-теста со строковым дефолтом.
+     * Если ни одно правило не сработало, getVariant() должен вернуть строковый default.
+     */
+    public function test_get_variant_returns_string_default_when_no_rules_match(): void
+    {
+        // ARRANGE: Флаг с дефолтом 'A' (строка)
+        $flag = new FeatureFlag(
+            name: new FlagName('ab_test_with_default'),
+            default: 'A', // Теперь это строка, а не bool
+            rules: [
+                // Правило, которое НЕ сработает (требует admin, а будет guest)
+                ['condition' => 'user_role=admin', 'value' => 'B'],
+            ],
+            specifications: [new UserRoleSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Контекст, не удовлетворяющий правилу
+        $variant = $service->getVariant('ab_test_with_default', ['user_role' => 'guest']);
+
+        // ASSERT: Должен вернуть строковый дефолт 'A', а не null
+        $this->assertSame('A', $variant);
+    }
+
+    /**
+     * Сценарий: Обратная совместимость — evaluate() всегда возвращает bool.
+     * Даже если дефолт — строка 'A', evaluate() должен вернуть (bool)'A' = true.
+     */
+    public function test_evaluate_returns_bool_even_when_default_is_string(): void
+    {
+        // ARRANGE: Флаг со строковым дефолтом
+        $flag = new FeatureFlag(
+            name: new FlagName('hybrid_flag'),
+            default: 'A', // строка
+            rules: [],    // нет правил
+            specifications: []
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT
+        $result = $service->isEnabled('hybrid_flag', []);
+
+        // ASSERT: evaluate() всегда возвращает bool (backward compatibility)
+        $this->assertIsBool($result);
+        $this->assertTrue($result); // (bool)'A' === true
+    }
+
+    /**
+     * Сценарий: getVariant() возвращает null, если дефолт — не строка.
+     * Для булевых флагов getVariant() не должен "подхватывать" булев дефолт.
+     */
+    public function test_get_variant_returns_null_when_default_is_not_string(): void
+    {
+        // ARRANGE: Обычный булев флаг
+        $flag = new FeatureFlag(
+            name: new FlagName('boolean_flag'),
+            default: true, // булево
+            rules: [],
+            specifications: []
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT
+        $variant = $service->getVariant('boolean_flag', []);
+
+        // ASSERT: getVariant() возвращает null для не-строковых дефолтов
+        $this->assertNull($variant);
+    }
+
+    /**
+     * Сценарий: Правило сработало, но вернуло не-строку -> getVariant() игнорирует.
+     * Если правило вернуло true/false, getVariant() должен продолжить поиск
+     * или вернуть строковый дефолт, но не булево значение.
+     */
+    public function test_get_variant_ignores_non_string_rule_values(): void
+    {
+        // ARRANGE: Флаг с правилом, возвращающим bool
+        $flag = new FeatureFlag(
+            name: new FlagName('mixed_rules_flag'),
+            default: 'control', // строковый дефолт
+            rules: [
+                // Правило сработает, но вернёт bool, а не строку
+                ['condition' => 'user_role=admin', 'value' => true],
+            ],
+            specifications: [new UserRoleSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        // ACT: Правило сработало (админ), но значение — bool
+        $variant = $service->getVariant('mixed_rules_flag', ['user_role' => 'admin']);
+
+        // ASSERT: getVariant() игнорирует не-строковые значения правил
+        // и возвращается к строковому дефолту
+        $this->assertSame('control', $variant);
+    }
+
+    /**
+     * Сценарий: Детерминированность — один контекст = один результат.
+     * Проверяем, что приватный хелпер не ломает детерминированность.
+     */
+    public function test_evaluate_and_get_variant_are_deterministic_with_shared_logic(): void
+    {
+        // ARRANGE: Флаг с процентным правилом
+        $flag = new FeatureFlag(
+            name: new FlagName('deterministic_flag'),
+            default: 'A',
+            rules: [
+                ['condition' => 'user_hash PERCENTAGE 50', 'value' => 'B'],
+            ],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository);
+
+        $context = ['user_hash' => 'fixed_hash_123'];
+
+        // ACT: Многократные вызовы
+        $evalResults = array_map(fn () => $service->isEnabled('deterministic_flag', $context), range(1, 20));
+        $variantResults = array_map(fn () => $service->getVariant('deterministic_flag', $context), range(1, 20));
+
+        // ASSERT: Все результаты идентичны (детерминированность)
+        $this->assertCount(1, array_unique($evalResults), 'evaluate() must be deterministic');
+        $this->assertCount(1, array_unique($variantResults), 'getVariant() must be deterministic');
+    }
 }
