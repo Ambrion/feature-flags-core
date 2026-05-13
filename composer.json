@@ -1,6 +1,5 @@
 {
   "name": "ambrion/feature-flags-core",
-  "version": "1.4.0-alpha",
   "description": "Framework-agnostic Feature Flags library following DDD and Clean Architecture principles",
   "type": "library",
   "license": "MIT",
