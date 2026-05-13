@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - v1.2.0-alpha
 ### Added
+- `EvaluationResult` Value Object: Type-safe container for flag evaluation data (`enabled`, `variant`, `weight`, `matchedRule`) (#JAM-7729)
+- `FeatureFlagService::evaluate(string, array): EvaluationResult`: Unified method returning all evaluation data in one call (#JAM-7729)
+- `FlagUsageLoggerInterface::logEvaluation(string, EvaluationResult, array)`: Single logging method for all evaluation scenarios (#JAM-7729)
+- `FeatureFlag::getMatchedRuleCondition(EvaluationContext): ?string`: Returns the condition string of the matched rule for debugging (#JAM-7729)
+- Convenience wrapper methods: `isEnabled()`, `getVariant()`, `getVariantWeight()`, `evaluateForAnalytics()` — now delegate to `evaluate()` for consistency (#JAM-7729)
 - `FeatureFlagService::evaluate()`: EvaluationResult — unified method returning all evaluation data for advanced analytics
 - `FeatureFlag::getMatchedRuleCondition()` — returns the condition string of the matched rule for debugging
 - `FeatureFlagService::evaluateForAnalytics(string, array): array{variant: ?string, weight: ?float}` for unified A/B test logging: returns variant and weight, logs once with weight in context (#JAM-7728)
@@ -23,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration-ready contracts (`FlagRepositoryInterface`, `FlagUsageLoggerInterface`)
 
 ### Changed
+- Logging architecture: All evaluation paths now use `logEvaluation()` with `EvaluationResult` — no more duplicate DB records for A/B tests (#JAM-7729)
+- FeatureFlagService internals: Single-pass evaluation via `evaluate()` — `isEnabled()`, `getVariant()`, etc. are now thin wrappers (#JAM-7729)
+- Test expectations: Updated all service tests to mock `logEvaluation()` instead of `log()`/`logVariant()`/`logWeight()` (#JAM-7729)
 - FeatureFlagService API: Convenience methods (`isEnabled`, `getVariant`, etc.) are now first-class citizens, not deprecated. They delegate to the unified `evaluate()` method internally for consistency and single-pass evaluation (#JAM-7728)
 - EvaluationResult: Added `matchedRule` field for debugging: "Which rule was triggered?"
 - A/B testing workflow: Use `evaluateForAnalytics()` instead of separate `getVariant()` + `getVariantWeight()` calls to prevent duplicate log entries (#JAM-7728)
@@ -36,6 +44,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PHP requirement bumped to `^8.3`
 
 ### Migration Notes
+> ⚠️ **For custom logger implementations**: If you implement `FlagUsageLoggerInterface`, add the new `logEvaluation()` method:
+> ```php
+> public function logEvaluation(string $flagName, EvaluationResult $result, array $context = []): void
+> {
+>     // Save $result->enabled, $result->variant, $result->weight, $result->matchedRule
+> }
+> ```
+
+>
+> ⚠️ **For direct service usage**: If you called `getVariant()` + `getVariantWeight()` separately, consider using `evaluate()` for efficiency:
+> ```php
+> // Before (two calls, two log entries):
+> $variant = $service->getVariant($flag, $ctx);
+> $weight = $service->getVariantWeight($flag, $ctx);
+> 
+> // After (one call, one log entry with all data):
+> $result = $service->evaluate($flag, $ctx);
+> $variant = $result->variant;
+> $weight = $result->weight;
+> ```
+
 > ⚠️ Snippet update recommended: If using separate `getVariant()` + manual `logVariant()` calls for A/B tests, migrate to `evaluateForAnalytics()` to avoid duplicate statistics records:
 >
 > ```php
@@ -52,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > ⚠️ If storing flags in a database, change `default_value` column from `BOOLEAN` to `JSON` to support polymorphic defaults. Laravel's `'json'` cast handles serialization automatically.
 
 ### Fixed
+- Type safety in evaluation results: `EvaluationResult` prevents accidental misuse of `null`/`bool`/`string` mixups (#JAM-7729)
 - Duplicate statistics records: `evaluateForAnalytics()` ensures single log entry per evaluation when tracking both variant and weight (#JAM-7728)
 - `PercentageSpecification` correctly handles `0%` and `100%` edge cases
 - `TargetIdSpecification::supports()` regex allows no-space syntax (`target_id=101`)
