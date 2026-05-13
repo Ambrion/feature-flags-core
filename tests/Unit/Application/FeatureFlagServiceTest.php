@@ -932,4 +932,114 @@ final class FeatureFlagServiceTest extends TestCase
         // ASSERT
         $this->assertNull($weight);
     }
+
+    /**
+     * Сценарий: evaluateForAnalytics() возвращает вариант и вес, логируя ОДИН раз.
+     * Использует реальный FeatureFlag с PercentageSpecification.
+     */
+    public function test_evaluate_for_analytics_logs_once_with_variant_and_weight(): void
+    {
+        // ARRANGE: Мок логгера с ожиданием ОДНОГО вызова logVariant()
+        $logger = $this->createMock(FlagUsageLoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('logVariant')
+            ->with(
+                'ab_test_flag',
+                'B', // Ожидаемый вариант
+                $this->callback(function (array $context) {
+                    // Проверяем, что вес передан в контексте
+                    return isset($context['user_hash'])
+                        && isset($context['weight'])
+                        && $context['weight'] === 0.25;
+                })
+            );
+
+        // Создаём РЕАЛЬНЫЙ флаг (не мокаем, т.к. final class)
+        $flag = new FeatureFlag(
+            name: new FlagName('ab_test_flag'),
+            default: 'A',
+            rules: [['condition' => 'user_hash PERCENTAGE 25', 'value' => 'B']],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')
+            ->with(new FlagName('ab_test_flag'))
+            ->willReturn($flag);
+
+        $service = new FeatureFlagService($repository, $logger);
+
+        // Находим хеш, который гарантированно попадёт в 25%
+        $hashInRule = $this->findHashForPercentageRule(25, true);
+
+        // ACT
+        $result = $service->evaluateForAnalytics('ab_test_flag', ['user_hash' => $hashInRule]);
+
+        // ASSERT
+        $this->assertSame('B', $result['variant']);
+        $this->assertEquals(0.25, $result['weight']);
+    }
+
+    /**
+     * Сценарий: evaluateForAnalytics() возвращает null, если пользователь не попал в процент
+     */
+    public function test_evaluate_for_analytics_returns_nulls_when_user_not_in_percentage(): void
+    {
+        // ARRANGE
+        $logger = $this->createMock(FlagUsageLoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('logVariant')
+            ->with(
+                'ab_test_flag',
+                'A', // Дефолтное значение
+                $this->callback(fn (array $ctx) => $ctx['weight'] === null)
+            );
+
+        $flag = new FeatureFlag(
+            name: new FlagName('ab_test_flag'),
+            default: 'A',
+            rules: [['condition' => 'user_hash PERCENTAGE 25', 'value' => 'B']],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository, $logger);
+
+        // Хеш, который НЕ попадёт в 25%
+        $hashOutOfRule = $this->findHashForPercentageRule(25, false);
+
+        // ACT
+        $result = $service->evaluateForAnalytics('ab_test_flag', ['user_hash' => $hashOutOfRule]);
+
+        // ASSERT
+        $this->assertSame('A', $result['variant']); // Дефолт
+        $this->assertNull($result['weight']); // Правило не сработало
+    }
+
+    /**
+     * Сценарий: evaluateForAnalytics() безопасно обрабатывает отсутствие флага
+     */
+    public function test_evaluate_for_analytics_handles_missing_flag_gracefully(): void
+    {
+        // ARRANGE
+        $logger = $this->createMock(FlagUsageLoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('logVariant')
+            ->with('unknown_flag', null, $this->anything());
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')
+            ->with(new FlagName('unknown_flag'))
+            ->willReturn(null);
+
+        $service = new FeatureFlagService($repository, $logger);
+
+        // ACT
+        $result = $service->evaluateForAnalytics('unknown_flag', ['user_hash' => 'any']);
+
+        // ASSERT
+        $this->assertNull($result['variant']);
+        $this->assertNull($result['weight']);
+    }
 }

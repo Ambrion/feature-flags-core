@@ -82,4 +82,30 @@ final readonly class FeatureFlagService
 
         return $weight;
     }
+
+    /**
+     * Оценивает флаг для A/B-теста и логирует результат с весом.
+     * Идеально для аналитики: одна запись в БД с вариантом и весом.
+     *
+     * @param  string  $flagName  Имя флага
+     * @param  array<string, scalar|null>  $context  Контекст оценки
+     * @return array{variant: string|null, weight: float|null}
+     */
+    public function evaluateForAnalytics(string $flagName, array $context = []): array
+    {
+        $flag = $this->repository->findByName(new FlagName($flagName));
+        $evaluationContext = EvaluationContext::fromArray($context);
+
+        // Получаем оба значения за один проход
+        $variant = $flag?->getVariant($evaluationContext);
+        $weight = $flag?->getVariantWeight($evaluationContext);
+
+        // Логируем ОДИН раз с обоими значениями
+        $this->logger->logVariant($flagName, $variant, [
+            ...$context,
+            'weight' => $weight,
+        ]);
+
+        return ['variant' => $variant, 'weight' => $weight];
+    }
 }
