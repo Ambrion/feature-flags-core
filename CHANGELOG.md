@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - v1.0.0-alpha
+## [Unreleased] - v1.2.0-alpha
 ### Added
-- **`getVariantWeight(): ?float`** for analytics: returns normalized weight (0.0-1.0) of percentage-based rules (#JAM-7726)
+- `FlagUsageLoggerInterface::logWeight(string, ?float, array)` for weight tracking in A/B tests (#JAM-7727)
+- `DatabaseFlagUsageLogger::logWeight()` implementation: saves weight to `feature_flag_statistics.weight` column (#JAM-7727)
+- `getVariantWeight(): ?float` for analytics: returns normalized weight (0.0-1.0) of percentage-based rules (#JAM-7726)
 - Internal `RuleMatch` value object for reusable rule evaluation logic (#JAM-7726)
 - `FeatureFlagService::getVariant()` for A/B testing with deterministic rollout
 - `FlagUsageLoggerInterface::logVariant()` for variant tracking
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration-ready contracts (`FlagRepositoryInterface`, `FlagUsageLoggerInterface`)
 
 ### Changed
+- `FeatureFlagService::getVariantWeight()` now calls `$this->logger->logWeight()` after weight calculation (#JAM-7727)
 - Refactored `FeatureFlag` internals: `findMatchingRuleValue()` → `findMatchingRule(): RuleMatch` for extensibility (#JAM-7726)
 - Extracted `extractPercentageWeight()` helper for deterministic weight calculation (#JAM-7726)
 - `FeatureFlag::evaluate()` uses short-circuit rule evaluation (first match wins)
@@ -31,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PercentageSpecification` correctly handles `0%` and `100%` edge cases
 - `TargetIdSpecification::supports()` regex allows no-space syntax (`target_id=101`)
 - String comparison in `TargetIdSpecification` supports UUIDs and slugs
+- Weight logging now correctly handles `null` for non-percentage rules (#JAM-7727)
 
 ### Dev Tools
 - Pest ^2.34 for testing
