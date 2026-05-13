@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - v1.2.0-alpha
 ### Added
+- `FeatureFlagService::evaluate()`: EvaluationResult — unified method returning all evaluation data for advanced analytics
+- `FeatureFlag::getMatchedRuleCondition()` — returns the condition string of the matched rule for debugging
 - `FeatureFlagService::evaluateForAnalytics(string, array): array{variant: ?string, weight: ?float}` for unified A/B test logging: returns variant and weight, logs once with weight in context (#JAM-7728)
 - `findHashForPercentageRule(int, bool): string` test helper for deterministic testing of percentage-based rules (#JAM-7728)
 - `FlagUsageLoggerInterface::logWeight(string, ?float, array)` for weight tracking in A/B tests (#JAM-7727)
@@ -21,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration-ready contracts (`FlagRepositoryInterface`, `FlagUsageLoggerInterface`)
 
 ### Changed
+- FeatureFlagService API: Convenience methods (`isEnabled`, `getVariant`, etc.) are now first-class citizens, not deprecated. They delegate to the unified `evaluate()` method internally for consistency and single-pass evaluation (#JAM-7728)
+- EvaluationResult: Added `matchedRule` field for debugging: "Which rule was triggered?"
 - A/B testing workflow: Use `evaluateForAnalytics()` instead of separate `getVariant()` + `getVariantWeight()` calls to prevent duplicate log entries (#JAM-7728)
 - Test strategy for final classes: Use real `FeatureFlag` + `PercentageSpecification` instances instead of mocking, with dynamic hash selection via helper (#JAM-7728)
 - `FeatureFlagService::getVariantWeight()` now calls `$this->logger->logWeight()` after weight calculation (#JAM-7727)

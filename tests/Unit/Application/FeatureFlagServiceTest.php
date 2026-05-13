@@ -13,6 +13,7 @@ use FeatureFlags\Core\Domain\Specification\DateBetweenSpecification;
 use FeatureFlags\Core\Domain\Specification\PercentageSpecification;
 use FeatureFlags\Core\Domain\Specification\TargetIdSpecification;
 use FeatureFlags\Core\Domain\Specification\UserRoleSpecification;
+use FeatureFlags\Core\Domain\ValueObject\EvaluationResult;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -364,13 +365,15 @@ final class FeatureFlagServiceTest extends TestCase
      */
     public function test_evaluate_calls_logger(): void
     {
-        // ARRANGE: Мок логгера
+        // ARRANGE: Мок логгера с ожиданием вызова logEvaluation()
         $logger = $this->createMock(FlagUsageLoggerInterface::class);
         $logger->expects($this->once())
-            ->method('log')
+            ->method('logEvaluation')
             ->with(
                 'test_flag',
-                true,
+                $this->callback(function (EvaluationResult $result) {
+                    return $result->enabled === true;
+                }),
                 $this->callback(fn (array $ctx) => ($ctx['role'] ?? '') === 'admin')
             );
 
@@ -379,7 +382,6 @@ final class FeatureFlagServiceTest extends TestCase
             new FeatureFlag(new FlagName('test_flag'), default: true)
         );
 
-        // Сервис требует логгер во втором аргументе (пока не реализовано)
         $service = new FeatureFlagService($repository, $logger);
 
         // ACT
@@ -466,17 +468,19 @@ final class FeatureFlagServiceTest extends TestCase
     }
 
     /**
-     * Сервис должен вызывать логирование варианта для A/B-тестов.
+     * Сервис должен логировать оценку при получении варианта.
      */
-    public function test_get_variant_calls_variant_logger(): void
+    public function test_get_variant_logs_evaluation(): void
     {
-        // ARRANGE: Мок логгера с ожиданием вызова logVariant()
+        // ARRANGE: Мок логгера с ожиданием вызова logEvaluation()
         $logger = $this->createMock(FlagUsageLoggerInterface::class);
         $logger->expects($this->once())
-            ->method('logVariant') // Метод ещё не существует в интерфейсе
+            ->method('logEvaluation')
             ->with(
                 'header_ab_test',
-                'variant_b',
+                $this->callback(function (EvaluationResult $result) {
+                    return $result->variant === 'variant_b';
+                }),
                 $this->callback(fn (array $ctx) => isset($ctx['user_hash']))
             );
 
@@ -490,7 +494,6 @@ final class FeatureFlagServiceTest extends TestCase
         $repository = $this->createMock(FlagRepositoryInterface::class);
         $repository->method('findByName')->willReturn($flag);
 
-        // Инжектим логгер в сервис
         $service = new FeatureFlagService($repository, $logger);
 
         // ACT
@@ -698,7 +701,6 @@ final class FeatureFlagServiceTest extends TestCase
         $service = new FeatureFlagService($repository);
 
         // ACT: Хеш, который попадает в первые 34% (bucket < 34)
-        // Используем хеш, который гарантированно даст bucket = 10 (< 34)
         $context = ['user_hash' => 'hash_bucket_10'];
         $weight = $service->getVariantWeight('ab_test_weighted', $context);
 
@@ -862,17 +864,19 @@ final class FeatureFlagServiceTest extends TestCase
     }
 
     /**
-     * Сценарий 1: Вес логируется, когда пользователь попал в процентное правило
+     * Сценарий: При сработавшем процентном правиле логгируется вес в EvaluationResult
      */
-    public function test_get_variant_weight_logs_weight_when_rule_matches(): void
+    public function test_get_variant_weight_logs_evaluation_with_weight(): void
     {
         // ARRANGE
         $logger = $this->createMock(FlagUsageLoggerInterface::class);
         $logger->expects($this->once())
-            ->method('logWeight')
+            ->method('logEvaluation')
             ->with(
                 'combined_test',
-                0.25,
+                $this->callback(function (EvaluationResult $result) {
+                    return $result->weight === 0.25;
+                }),
                 $this->callback(fn (array $ctx) => isset($ctx['user_hash']))
             );
 
@@ -885,6 +889,7 @@ final class FeatureFlagServiceTest extends TestCase
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
         $repository->method('findByName')->willReturn($flag);
+
         $service = new FeatureFlagService($repository, $logger);
 
         // Хеш, который гарантированно попадает в 25%
@@ -898,17 +903,19 @@ final class FeatureFlagServiceTest extends TestCase
     }
 
     /**
-     * Сценарий 2: Вес = null, когда пользователь не попал в правило
+     * Сценарий: При не сработавшем правиле логгируется weight=null в EvaluationResult
      */
-    public function test_get_variant_weight_logs_null_when_rule_does_not_match(): void
+    public function test_get_variant_weight_logs_evaluation_with_null_weight(): void
     {
         // ARRANGE
         $logger = $this->createMock(FlagUsageLoggerInterface::class);
         $logger->expects($this->once())
-            ->method('logWeight')
+            ->method('logEvaluation')
             ->with(
                 'combined_test',
-                null,
+                $this->callback(function (EvaluationResult $result) {
+                    return $result->weight === null;
+                }),
                 $this->callback(fn (array $ctx) => isset($ctx['user_hash']))
             );
 
@@ -921,6 +928,7 @@ final class FeatureFlagServiceTest extends TestCase
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
         $repository->method('findByName')->willReturn($flag);
+
         $service = new FeatureFlagService($repository, $logger);
 
         // Хеш, который гарантированно НЕ попадает в 25%
@@ -934,27 +942,22 @@ final class FeatureFlagServiceTest extends TestCase
     }
 
     /**
-     * Сценарий: evaluateForAnalytics() возвращает вариант и вес, логируя ОДИН раз.
-     * Использует реальный FeatureFlag с PercentageSpecification.
+     * Сценарий: evaluateForAnalytics() логирует ОДИН раз с variant и weight в EvaluationResult
      */
-    public function test_evaluate_for_analytics_logs_once_with_variant_and_weight(): void
+    public function test_evaluate_for_analytics_logs_evaluation_with_variant_and_weight(): void
     {
-        // ARRANGE: Мок логгера с ожиданием ОДНОГО вызова logVariant()
+        // ARRANGE
         $logger = $this->createMock(FlagUsageLoggerInterface::class);
         $logger->expects($this->once())
-            ->method('logVariant')
+            ->method('logEvaluation')
             ->with(
                 'ab_test_flag',
-                'B', // Ожидаемый вариант
-                $this->callback(function (array $context) {
-                    // Проверяем, что вес передан в контексте
-                    return isset($context['user_hash'])
-                        && isset($context['weight'])
-                        && $context['weight'] === 0.25;
-                })
+                $this->callback(function (EvaluationResult $result) {
+                    return $result->variant === 'B' && $result->weight === 0.25;
+                }),
+                $this->callback(fn (array $ctx) => isset($ctx['user_hash']))
             );
 
-        // Создаём РЕАЛЬНЫЙ флаг (не мокаем, т.к. final class)
         $flag = new FeatureFlag(
             name: new FlagName('ab_test_flag'),
             default: 'A',
@@ -969,7 +972,7 @@ final class FeatureFlagServiceTest extends TestCase
 
         $service = new FeatureFlagService($repository, $logger);
 
-        // Находим хеш, который гарантированно попадёт в 25%
+        // Хеш, который гарантированно попадёт в 25%
         $hashInRule = $this->findHashForPercentageRule(25, true);
 
         // ACT
@@ -981,18 +984,20 @@ final class FeatureFlagServiceTest extends TestCase
     }
 
     /**
-     * Сценарий: evaluateForAnalytics() возвращает null, если пользователь не попал в процент
+     * Сценарий: Если пользователь не попал в процент, логируется null для variant и weight
      */
-    public function test_evaluate_for_analytics_returns_nulls_when_user_not_in_percentage(): void
+    public function test_evaluate_for_analytics_logs_evaluation_with_nulls(): void
     {
         // ARRANGE
         $logger = $this->createMock(FlagUsageLoggerInterface::class);
         $logger->expects($this->once())
-            ->method('logVariant')
+            ->method('logEvaluation')
             ->with(
                 'ab_test_flag',
-                'A', // Дефолтное значение
-                $this->callback(fn (array $ctx) => $ctx['weight'] === null)
+                $this->callback(function (EvaluationResult $result) {
+                    return $result->variant === 'A' && $result->weight === null;
+                }),
+                $this->anything()
             );
 
         $flag = new FeatureFlag(
@@ -1004,6 +1009,7 @@ final class FeatureFlagServiceTest extends TestCase
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
         $repository->method('findByName')->willReturn($flag);
+
         $service = new FeatureFlagService($repository, $logger);
 
         // Хеш, который НЕ попадёт в 25%
@@ -1013,20 +1019,27 @@ final class FeatureFlagServiceTest extends TestCase
         $result = $service->evaluateForAnalytics('ab_test_flag', ['user_hash' => $hashOutOfRule]);
 
         // ASSERT
-        $this->assertSame('A', $result['variant']); // Дефолт
-        $this->assertNull($result['weight']); // Правило не сработало
+        $this->assertSame('A', $result['variant']);
+        $this->assertNull($result['weight']);
     }
 
     /**
-     * Сценарий: evaluateForAnalytics() безопасно обрабатывает отсутствие флага
+     * Сценарий: При отсутствии флага логируется EvaluationResult::notFound()
      */
-    public function test_evaluate_for_analytics_handles_missing_flag_gracefully(): void
+    public function test_evaluate_for_analytics_logs_evaluation_for_missing_flag(): void
     {
         // ARRANGE
         $logger = $this->createMock(FlagUsageLoggerInterface::class);
         $logger->expects($this->once())
-            ->method('logVariant')
-            ->with('unknown_flag', null, $this->anything());
+            ->method('logEvaluation')
+            ->with(
+                'unknown_flag',
+                $this->callback(function (EvaluationResult $result) {
+                    // notFound() возвращает все поля = null
+                    return $result->variant === null && $result->weight === null && $result->enabled === null;
+                }),
+                $this->anything()
+            );
 
         $repository = $this->createMock(FlagRepositoryInterface::class);
         $repository->method('findByName')

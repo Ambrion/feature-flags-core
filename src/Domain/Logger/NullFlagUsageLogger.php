@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace FeatureFlags\Core\Domain\Logger;
 
+use FeatureFlags\Core\Domain\ValueObject\EvaluationResult;
+
 /**
  * Null Object Pattern: "пустой" логгер, который ничего не делает.
  * Используется по умолчанию в сервисах и тестах.
@@ -14,18 +16,5 @@ final class NullFlagUsageLogger implements FlagUsageLoggerInterface
     /**
      * @param  array<string, scalar|null>  $context
      */
-    public function log(string $flagName, bool $result, array $context = []): void
-    {
-        // Намеренно пусто: не логируем, не падаем, не шумим
-    }
-
-    /**
-     * @param  array<string, scalar|null>  $context
-     */
-    public function logVariant(string $flagName, ?string $variant, array $context = []): void {}
-
-    /**
-     * @param  array<string, scalar|null>  $context
-     */
-    public function logWeight(string $flagName, ?float $weight, array $context = []): void {}
+    public function logEvaluation(string $flagName, EvaluationResult $result, array $context = []): void {}
 }

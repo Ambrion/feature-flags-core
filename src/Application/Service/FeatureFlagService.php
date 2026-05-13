@@ -8,6 +8,7 @@ use FeatureFlags\Core\Domain\Logger\FlagUsageLoggerInterface;
 use FeatureFlags\Core\Domain\Logger\NullFlagUsageLogger;
 use FeatureFlags\Core\Domain\Repository\FlagRepositoryInterface;
 use FeatureFlags\Core\Domain\ValueObject\EvaluationContext;
+use FeatureFlags\Core\Domain\ValueObject\EvaluationResult;
 use FeatureFlags\Core\Domain\ValueObject\FlagName;
 
 /**
@@ -22,70 +23,77 @@ final readonly class FeatureFlagService
     ) {}
 
     /**
-     * Проверяет, включен ли флаг для заданного контекста.
+     * Метод оценки флага (источник истины).
+     * Возвращает структурированный результат со всеми данными для аналитики.
      *
      * @param  string  $flagName  Имя флага
-     * @param  array<string, scalar|null>  $context  Контекст оценки (ключ => значение)
+     * @param  array<string, scalar|null>  $context  Контекст оценки
+     * @return EvaluationResult Структурированный результат
      */
-    public function isEnabled(string $flagName, array $context = []): bool
+    public function evaluate(string $flagName, array $context = []): EvaluationResult
     {
         $flag = $this->repository->findByName(new FlagName($flagName));
+        $evaluationContext = EvaluationContext::fromArray($context);
 
-        // 1. Оцениваем флаг
-        $result = $flag !== null && $flag->evaluate(EvaluationContext::fromArray($context));
+        if ($flag === null) {
+            $result = EvaluationResult::notFound();
+        } else {
+            $result = EvaluationResult::success(
+                enabled: $flag->evaluate($evaluationContext),
+                variant: $flag->getVariant($evaluationContext),
+                weight: $flag->getVariantWeight($evaluationContext),
+                matchedRule: $flag->getMatchedRuleCondition($evaluationContext),
+            );
+        }
 
-        // 2. Логируем вызов (всегда, даже если логгер — Null Object)
-        $this->logger->log($flagName, $result, $context);
+        // Единый вызов логгера
+        $this->logger->logEvaluation($flagName, $result, $context);
 
         return $result;
     }
 
     /**
-     * Получает вариант флага для A/B-тестирования.
-     * Делегирует оценку доменной сущности.
-     * Возвращает null, если флаг не найден или правила не сработали.
+     * Проверяет, включен ли флаг для заданного контекста.
+     * Удобный метод для булевых проверок.
      *
      * @param  string  $flagName  Имя флага
-     * @param  array<string, scalar|null>  $context  Контекст оценки (ключ => значение)
+     * @param  array<string, scalar|null>  $context  Контекст оценки
+     * @return bool true, если флаг включён
+     */
+    public function isEnabled(string $flagName, array $context = []): bool
+    {
+        return $this->evaluate($flagName, $context)->enabled ?? false;
+    }
+
+    /**
+     * Получает вариант флага для A/B-тестирования.
+     * Удобный метод, когда нужен только вариант.
+     *
+     * @param  string  $flagName  Имя флага
+     * @param  array<string, scalar|null>  $context  Контекст оценки
+     * @return string|null Вариант ('A', 'B', ...) или null
      */
     public function getVariant(string $flagName, array $context = []): ?string
     {
-        $flag = $this->repository->findByName(new FlagName($flagName));
-
-        // 1. Оцениваем вариант
-        $variant = $flag?->getVariant(EvaluationContext::fromArray($context));
-
-        // 2. Логируем выбор варианта (даже если это null)
-        $this->logger->logVariant($flagName, $variant, $context);
-
-        return $variant;
+        return $this->evaluate($flagName, $context)->variant;
     }
 
     /**
      * Получает вес варианта флага для аналитики.
-     * Возвращает нормализованный вес (0.0-1.0) процентного правила,
-     * или null, если правило не процентное / не сработало.
+     * Удобный метод, когда нужен только вес.
      *
      * @param  string  $flagName  Имя флага
      * @param  array<string, scalar|null>  $context  Контекст оценки
-     * @return float|null Вес варианта или null
+     * @return float|null Нормализованный вес (0.0-1.0) или null
      */
     public function getVariantWeight(string $flagName, array $context = []): ?float
     {
-        $flag = $this->repository->findByName(new FlagName($flagName));
-
-        // Делегируем вычисление веса доменной сущности
-        $weight = $flag?->getVariantWeight(EvaluationContext::fromArray($context));
-
-        // Логирование веса
-        $this->logger->logWeight($flagName, $weight, $context);
-
-        return $weight;
+        return $this->evaluate($flagName, $context)->weight;
     }
 
     /**
-     * Оценивает флаг для A/B-теста и логирует результат с весом.
-     * Идеально для аналитики: одна запись в БД с вариантом и весом.
+     * Оценивает флаг для A/B-теста и возвращает вариант с весом.
+     * Удобный метод для аналитики: одна запись в БД с вариантом и весом.
      *
      * @param  string  $flagName  Имя флага
      * @param  array<string, scalar|null>  $context  Контекст оценки
@@ -93,19 +101,8 @@ final readonly class FeatureFlagService
      */
     public function evaluateForAnalytics(string $flagName, array $context = []): array
     {
-        $flag = $this->repository->findByName(new FlagName($flagName));
-        $evaluationContext = EvaluationContext::fromArray($context);
+        $result = $this->evaluate($flagName, $context);
 
-        // Получаем оба значения за один проход
-        $variant = $flag?->getVariant($evaluationContext);
-        $weight = $flag?->getVariantWeight($evaluationContext);
-
-        // Логируем ОДИН раз с обоими значениями
-        $this->logger->logVariant($flagName, $variant, [
-            ...$context,
-            'weight' => $weight,
-        ]);
-
-        return ['variant' => $variant, 'weight' => $weight];
+        return ['variant' => $result->variant, 'weight' => $result->weight];
     }
 }

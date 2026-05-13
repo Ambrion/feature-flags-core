@@ -56,6 +56,19 @@ final readonly class FeatureFlag
     }
 
     /**
+     * Возвращает условие сработавшего правила или null
+     *
+     * @param  EvaluationContext  $context  Контекст оценки
+     * @return string|null Условие правила (например, "user_hash PERCENTAGE 33") или null
+     */
+    public function getMatchedRuleCondition(EvaluationContext $context): ?string
+    {
+        $match = $this->findMatchingRule($context);
+
+        return $match->matched() ? $match->condition : null;
+    }
+
+    /**
      * Извлекает нормализованный вес из условия вида "user_hash PERCENTAGE 34".
      * Возвращает вес только если пользователь попал в этот процент.
      */
