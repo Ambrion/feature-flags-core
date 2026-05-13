@@ -860,4 +860,76 @@ final class FeatureFlagServiceTest extends TestCase
             "Could not find hash for percentage=$percentage, shouldMatch=".($shouldMatch ? 'true' : 'false')
         );
     }
+
+    /**
+     * Сценарий 1: Вес логируется, когда пользователь попал в процентное правило
+     */
+    public function test_get_variant_weight_logs_weight_when_rule_matches(): void
+    {
+        // ARRANGE
+        $logger = $this->createMock(FlagUsageLoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('logWeight')
+            ->with(
+                'combined_test',
+                0.25,
+                $this->callback(fn (array $ctx) => isset($ctx['user_hash']))
+            );
+
+        $flag = new FeatureFlag(
+            name: new FlagName('combined_test'),
+            default: 'A',
+            rules: [['condition' => 'user_hash PERCENTAGE 25', 'value' => 'B']],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository, $logger);
+
+        // Хеш, который гарантированно попадает в 25%
+        $hashInRule = $this->findHashForPercentageRule(25, true);
+
+        // ACT
+        $weight = $service->getVariantWeight('combined_test', ['user_hash' => $hashInRule]);
+
+        // ASSERT
+        $this->assertEquals(0.25, $weight);
+    }
+
+    /**
+     * Сценарий 2: Вес = null, когда пользователь не попал в правило
+     */
+    public function test_get_variant_weight_logs_null_when_rule_does_not_match(): void
+    {
+        // ARRANGE
+        $logger = $this->createMock(FlagUsageLoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('logWeight')
+            ->with(
+                'combined_test',
+                null,
+                $this->callback(fn (array $ctx) => isset($ctx['user_hash']))
+            );
+
+        $flag = new FeatureFlag(
+            name: new FlagName('combined_test'),
+            default: 'A',
+            rules: [['condition' => 'user_hash PERCENTAGE 25', 'value' => 'B']],
+            specifications: [new PercentageSpecification]
+        );
+
+        $repository = $this->createMock(FlagRepositoryInterface::class);
+        $repository->method('findByName')->willReturn($flag);
+        $service = new FeatureFlagService($repository, $logger);
+
+        // Хеш, который гарантированно НЕ попадает в 25%
+        $hashOutOfRule = $this->findHashForPercentageRule(25, false);
+
+        // ACT
+        $weight = $service->getVariantWeight('combined_test', ['user_hash' => $hashOutOfRule]);
+
+        // ASSERT
+        $this->assertNull($weight);
+    }
 }

@@ -28,4 +28,13 @@ interface FlagUsageLoggerInterface
      * @param  array<string, scalar|null>  $context  Контекст вызова
      */
     public function logVariant(string $flagName, ?string $variant, array $context = []): void;
+
+    /**
+     * Логирует вес флага.
+     *
+     * @param  string  $flagName  Имя флага
+     * @param  float|null  $weight  Вес варианта или null
+     * @param  array<string, scalar|null>  $context  Контекст вызова
+     */
+    public function logWeight(string $flagName, ?float $weight, array $context = []): void;
 }

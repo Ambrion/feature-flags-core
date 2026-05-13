@@ -77,8 +77,8 @@ final readonly class FeatureFlagService
         // Делегируем вычисление веса доменной сущности
         $weight = $flag?->getVariantWeight(EvaluationContext::fromArray($context));
 
-        // Опционально: логирование (если понадобится аналитика весов)
-        // $this->logger->logWeight($flagName, $weight, $context);
+        // Логирование веса
+        $this->logger->logWeight($flagName, $weight, $context);
 
         return $weight;
     }

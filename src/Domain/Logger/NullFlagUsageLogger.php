@@ -23,4 +23,9 @@ final class NullFlagUsageLogger implements FlagUsageLoggerInterface
      * @param  array<string, scalar|null>  $context
      */
     public function logVariant(string $flagName, ?string $variant, array $context = []): void {}
+
+    /**
+     * @param  array<string, scalar|null>  $context
+     */
+    public function logWeight(string $flagName, ?float $weight, array $context = []): void {}
 }
