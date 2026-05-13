@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0-alpha] - 2026-05-13
+### Added
+- **`CompositeSpecification`**: Support for logical operators `AND`, `OR`, `NOT`, and `!=` in flag conditions (#JAM-7731)
+- **Operator precedence**: `NOT` > `AND` > `OR` for intuitive rule evaluation (#JAM-7731)
+
+### Changed
+- **Specification registration**: `CompositeSpecification` must be registered first in the specifications array to intercept compound conditions before atomic specs (#JAM-7731)
+
+### Fixed
+- PHPStan type safety: Added `@param iterable<ConditionSpecificationInterface>` and null/false checks for `preg_split`/`preg_replace` (#JAM-7731)
+
 ## [1.3.0-alpha] - 2026-05-13
 ### Added
 - **`EvaluationResult` Value Object**: Type-safe container for flag evaluation data (`enabled`, `variant`, `weight`, `matchedRule`) (#JAM-7729)

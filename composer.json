@@ -1,5 +1,6 @@
 {
   "name": "ambrion/feature-flags-core",
+  "version": "1.4.0-alpha",
   "description": "Framework-agnostic Feature Flags library following DDD and Clean Architecture principles",
   "type": "library",
   "license": "MIT",
@@ -46,6 +47,6 @@
       "@php vendor/bin/test -- --help > /dev/null 2>&1 || true"
     ]
   },
-  "minimum-stability": "stable",
+  "minimum-stability": "alpha",
   "prefer-stable": true
 }
